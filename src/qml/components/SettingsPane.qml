@@ -235,7 +235,7 @@ Item {
                 ThemedLabel {
                     width: parent.width
                     visible: EditorState.uiScaleNeedsRestart
-                    text: qsTr("Restart Drift to apply this size.")
+                    text: qsTr("Restart Dluz Film to apply this size.")
                     color: Theme.panelSecondaryForeground
                 }
 
@@ -311,7 +311,7 @@ Item {
                     ThemedSwitch {
                         checked: Updates.enabled
                         text: qsTr("Check on startup")
-                        tooltip: qsTr("Ask GitHub once a day whether a newer Drift has been released")
+                        tooltip: qsTr("Ask GitHub once a day whether a newer Dluz Film has been released")
                         onToggled: Updates.enabled = checked
                     }
 
@@ -333,7 +333,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             text: Updates.status.length > 0
                                   ? Updates.status
-                                  : qsTr("Drift %1").arg(Updates.currentVersion)
+                                  : qsTr("Dluz Film %1").arg(Updates.currentVersion)
                         }
                     }
                 }

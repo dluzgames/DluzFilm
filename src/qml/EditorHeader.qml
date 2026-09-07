@@ -15,7 +15,7 @@ Rectangle {
 
     readonly property var projectFilter: [
         qsTr("All Supported Projects (*.drift *.prproj *.xml)"),
-        qsTr("Drift project (*.drift)"),
+        qsTr("Dluz Film project (*.drift)"),
         qsTr("Premiere Pro project (*.prproj)"),
         qsTr("Final Cut Pro XML (*.xml)")
     ]
@@ -571,7 +571,7 @@ Rectangle {
                     glyph: Theme.icons.download
                     variant: "ghost"
                     text: qsTr("Update")
-                    tooltip: qsTr("Drift %1 is available").arg(Updates.latestVersion)
+                    tooltip: qsTr("Dluz Film %1 is available").arg(Updates.latestVersion)
                     onClicked: root.Window.window.openUpdateDialog()
                 }
 

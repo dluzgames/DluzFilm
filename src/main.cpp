@@ -281,7 +281,7 @@ void warnIfNoOpenGl()
         title = QCoreApplication::translate("main", "No OpenGL driver");
         body = QCoreApplication::translate(
             "main",
-            "Drift could not create an OpenGL context, so it cannot draw its interface "
+            "Dluz Film could not create an OpenGL context, so it cannot draw its interface "
             "or render the preview.\n\nInstall or update your graphics driver.");
     } else if (atLeast33(obtained)) {
         // New enough, so it is the 3.3 *core profile* that could not be had — a
@@ -290,7 +290,7 @@ void warnIfNoOpenGl()
         title = QCoreApplication::translate("main", "OpenGL context unavailable");
         body = QCoreApplication::translate(
                    "main",
-                   "Drift could not create an OpenGL 3.3 core profile context, though "
+                   "Dluz Film could not create an OpenGL 3.3 core profile context, though "
                    "this driver reports OpenGL %1.%2 (%3).\n\nThe video preview cannot "
                    "render. Updating your graphics driver may help.")
                    .arg(obtained.majorVersion())
@@ -299,12 +299,12 @@ void warnIfNoOpenGl()
     } else {
         title = QCoreApplication::translate("main", "Graphics driver is too old");
         // Deliberately does not promise what happens next: below 3.3 the preview
-        // cannot render on any platform, and on some Drift cannot start at all.
+        // cannot render on any platform, and on some Dluz Film cannot start at all.
         body = QCoreApplication::translate(
                    "main",
-                   "Drift needs OpenGL 3.3, but this graphics driver only provides "
-                   "OpenGL %1.%2 (%3).\n\nThe video preview cannot render, and Drift may "
-                   "not start at all. Update your graphics driver, or run Drift on a "
+                   "Dluz Film needs OpenGL 3.3, but this graphics driver only provides "
+                   "OpenGL %1.%2 (%3).\n\nThe video preview cannot render, and Dluz Film may "
+                   "not start at all. Update your graphics driver, or run Dluz Film on a "
                    "machine with a newer GPU.")
                    .arg(obtained.majorVersion())
                    .arg(obtained.minorVersion())
@@ -334,8 +334,8 @@ int main(int argc, char *argv[])
     for (int i = 1; i < argc; ++i) {
         if (qstrcmp(argv[i], "--mcp-stdio") == 0) {
             QCoreApplication app(argc, argv);
-            QCoreApplication::setApplicationName("CutWire Drift");
-            QCoreApplication::setOrganizationName("CutWire Drift");
+            QCoreApplication::setApplicationName("Dluz Film");
+            QCoreApplication::setOrganizationName("Dluz Film");
             return drift::mcp::runStdioAttach();
         }
     }
@@ -387,8 +387,8 @@ int main(int argc, char *argv[])
 
     // Names must be set before reading QSettings for ui/scale, and QT_SCALE_FACTOR
     // must be in the environment before QApplication is constructed.
-    QCoreApplication::setApplicationName("CutWire Drift");
-    QCoreApplication::setOrganizationName("CutWire Drift");
+    QCoreApplication::setApplicationName("Dluz Film");
+    QCoreApplication::setOrganizationName("Dluz Film");
     AppController::applyStoredUiScale();
     // Qt's xcb plugin defaults to GLX, so eglGetCurrentDisplay() is null and
     // zero-copy sticky-disables. Only force EGL when the user opted in — default
@@ -403,7 +403,7 @@ int main(int argc, char *argv[])
     }
     // Associates the window with the installed .desktop entry so shells (notably
     // Wayland) can find its icon and app metadata.
-    QGuiApplication::setDesktopFileName(QStringLiteral("org.cutwire.Drift"));
+    QGuiApplication::setDesktopFileName(QStringLiteral("com.dluz.dluzfilm"));
     // Title bar / taskbar icon when no desktop entry is available (Windows, and
     // Linux runs from the build tree). The .exe still needs the Windows .rc icon
     // for Explorer and pinned-taskbar identity.

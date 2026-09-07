@@ -42,7 +42,7 @@ ThemedDialog {
                 width: parent.width
                 size: "sm"
                 wrapMode: Text.WordWrap
-                text: qsTr("Let Cursor or Claude edit this project for you — add clips, change the timeline, and check how it looks. Only programs on this computer. Starts off each time you open Drift; turn it off when you finish.")
+                text: qsTr("Let Cursor or Claude edit this project for you — add clips, change the timeline, and check how it looks. Only programs on this computer. Starts off each time you open Dluz Film; turn it off when you finish.")
             }
 
             ThemedSwitch {

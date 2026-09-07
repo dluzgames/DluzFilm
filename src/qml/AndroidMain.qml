@@ -9,9 +9,9 @@ ApplicationWindow {
     id: window
     visible: true
     color: Theme.appBackground
-    title: "CutWire Drift"
+    title: "Dluz Film"
 
-    readonly property var projectFilter: [qsTr("Drift project (*.drift)")]
+    readonly property var projectFilter: [qsTr("Dluz Film project (*.drift)")]
     property bool inEditor: false
     property bool forceClose: false
     property var _pendingAfterUnsaved: null

@@ -153,9 +153,9 @@ QtObject {
         panelAccent: "#262626",
         panelAccentForeground: "#ededed",
         panelMuted: "#383838",
-        panelSecondaryBg: "#26200a",
-        panelSecondaryBorder: "#4a3d00",
-        panelSecondaryForeground: "#ffcf4a"
+        panelSecondaryBg: "#261012",
+        panelSecondaryBorder: "#4d1b22",
+        panelSecondaryForeground: "#ff6b7a"
     })
     readonly property var _light: ({
         appBackground: "#ffffff",
@@ -171,9 +171,9 @@ QtObject {
         panelAccent: "#ededed",
         panelAccentForeground: "#0d0d0d",
         panelMuted: "#d4d4d4",
-        panelSecondaryBg: "#fff6da",
-        panelSecondaryBorder: "#ffe7a3",
-        panelSecondaryForeground: "#9a6f00"
+        panelSecondaryBg: "#fff1f2",
+        panelSecondaryBorder: "#fecdd3",
+        panelSecondaryForeground: "#be123c"
     })
     readonly property var _palette: darkMode ? _dark : _light
 
@@ -209,14 +209,11 @@ QtObject {
     readonly property color panelSecondaryForeground: _palette.panelSecondaryForeground
 
     // --- Colors: shared semantic (identical in both themes) -----------------------
-    readonly property color primary: "#F8B81C"
-    readonly property color primaryForeground: "#221900"
-    // `primary` as a *foreground* on a panel surface. The brand amber is a fill
-    // colour: on the light panel it lands at 1.69:1, so a selected tab tinted with
-    // it was effectively invisible. Dark mode keeps the amber (9.8:1); light mode
-    // uses the darkened brand tone (5.2:1). Only for text/glyphs on panels —
-    // fills, rings and progress arcs still use `primary` in both themes.
-    readonly property color accentOnPanel: darkMode ? primary : "#8a6300"
+    readonly property color primary: "#E50914"
+    readonly property color primaryForeground: "#ffffff"
+    // `primary` as a *foreground* on a panel surface. Dark mode keeps the red (5.1:1);
+    // light mode uses the darkened crimson tone (5.4:1) for strong contrast.
+    readonly property color accentOnPanel: darkMode ? primary : "#b91c1c"
     readonly property color destructive: "#e91616"
     readonly property color constructive: "#23d160"
     readonly property color warning: "#f97316"
@@ -227,9 +224,9 @@ QtObject {
 
     // Export CTA gradient stops (the documented inline-color exception, sourced
     // from here so the button still tracks the token system).
-    readonly property color exportGradientTop: "#ffcf4a"
-    readonly property color exportGradientBottom: "#f59e0b"
-    readonly property color exportGlow: "#fbbf24"
+    readonly property color exportGradientTop: "#ff4d5a"
+    readonly property color exportGradientBottom: "#dc2626"
+    readonly property color exportGlow: "#ef4444"
 
     // Scrims/overlays drawn over media (clip name bands, preview letterbox,
     // thumbnail duration badges). Fixed regardless of app theme because they sit
@@ -243,7 +240,7 @@ QtObject {
     readonly property color guideWeak: "#66ffffff"
     readonly property color onMedia: "#ffffff"
     // Timeline snap indicator.
-    readonly property color snapGuide: "#f5c542"
+    readonly property color snapGuide: "#ff3b50"
     // Async placeholder fill for thumbnails, filmstrips and waveforms.
     readonly property color skeletonColor: darkMode ? "#242424" : "#e8e8e8"
     readonly property color skeletonHighlight: darkMode ? "#333333" : "#f5f5f5"

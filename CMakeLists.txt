@@ -6,7 +6,7 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Oldest macOS release Drift 
 
 # C is enabled for JUCE only: its modules compile a handful of C sources (zlib, flac, oggvorbis)
 # and its CMake refuses to configure without it.
-project(Drift VERSION 0.5.1 LANGUAGES CXX C)
+project(DluzFilm VERSION 0.5.1 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -656,8 +656,8 @@ endif()
 # It also collides with the <build>/Drift/ directory qt_add_qml_module(URI Drift) writes, which
 # on case-insensitive APFS fails the link with EISDIR.
 if(APPLE)
-    set(DRIFT_MACOS_EXECUTABLE "Drift")
-    set(DRIFT_MACOS_BUNDLE_ID "org.cutwire.Drift")
+    set(DRIFT_MACOS_EXECUTABLE "DluzFilm")
+    set(DRIFT_MACOS_BUNDLE_ID "com.dluz.film")
     set(DRIFT_MACOS_ICON_FILE "Drift.icns")
 
     # Not CMake's MACOSX_BUNDLE_* properties: the NS* and LSMinimumSystemVersion keys have none.
@@ -925,9 +925,9 @@ if(ANDROID)
         list(APPEND _drift_android_extra_libs "${_crypto}" "${_ssl}")
     endforeach()
 
-    set(DRIFT_ANDROID_PACKAGE_NAME "org.cutwire.drift" CACHE STRING
-        "Android application id (use org.cutwire.drift.ci for side-by-side test builds)")
-    set(DRIFT_ANDROID_APP_NAME "Drift" CACHE STRING
+    set(DRIFT_ANDROID_PACKAGE_NAME "com.dluz.film" CACHE STRING
+        "Android application id (use com.dluz.film.ci for side-by-side test builds)")
+    set(DRIFT_ANDROID_APP_NAME "Dluz Film" CACHE STRING
         "Launcher label")
     # versionName is PROJECT_VERSION — same string the desktop binary embeds as DRIFT_VERSION.
     # versionCode is the Play-Store integer; default tracks that semver so a desktop bump is an

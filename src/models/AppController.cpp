@@ -230,7 +230,8 @@ QTranslator g_qtTranslator;
 
 QString storedUiLanguage()
 {
-    return QSettings().value(QStringLiteral("ui/language")).toString().trimmed();
+    const QString stored = QSettings().value(QStringLiteral("ui/language")).toString().trimmed();
+    return stored.isEmpty() ? QStringLiteral("pt_BR") : stored;
 }
 
 bool storedUiLanguageChosen()
@@ -255,9 +256,7 @@ bool looksLikeReturningInstall()
 
 bool needsFirstLaunchLanguagePrompt()
 {
-    if (storedUiLanguageChosen())
-        return false;
-    return !looksLikeReturningInstall();
+    return false;
 }
 
 void markUiLanguageChosen()
@@ -572,7 +571,7 @@ QString materializeContentUrl(const QUrl &url)
 QLocale uiLocaleFromStored()
 {
     const QString code = storedUiLanguage();
-    return code.isEmpty() ? QLocale::system() : QLocale(code);
+    return code.isEmpty() ? QLocale(QStringLiteral("pt_BR")) : QLocale(code);
 }
 
 QString languageLabel(const QString &code)

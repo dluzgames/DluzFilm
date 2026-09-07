@@ -68,7 +68,7 @@ Item {
                     spacing: 2
 
                     Text {
-                        text: "Drift"
+                        text: "Dluz Film"
                         color: Theme.foreground
                         font.family: Theme.fontFamily
                         font.pixelSize: 22

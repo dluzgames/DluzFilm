@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<TS version="2.1" language="en" sourcelanguage="en">
+<TS version="2.1" language="pt_BR" sourcelanguage="en">
 <context>
     <name>AddonManager</name>
     <message>
@@ -91,8 +91,8 @@
         <translation>Instale um motor de IA abaixo para desbloquear legendas automáticas, recorte automático, efeitos engraçados de rosto e remoção de ruído.</translation>
     </message>
     <message>
-        <source>Restart Drift for this to take effect.</source>
-        <translation>Reinicie o Drift para aplicar a alteração.</translation>
+        <source>Restart Dluz Film for this to take effect.</source>
+        <translation>Reinicie o Dluz Film para aplicar a alteração.</translation>
     </message>
     <message>
         <source>Can&apos;t reach the download store</source>
@@ -166,8 +166,8 @@
         <translation>Pacotes recomendados</translation>
     </message>
     <message>
-        <source>Install the essential packs for effects, transitions, and audio. You can keep using Drift without them — installing unlocks updates when they improve.</source>
-        <translation>Instale os pacotes essenciais de efeitos, transições e áudio. Você pode continuar usando o Drift sem eles — instalar desbloqueia atualizações quando eles melhoram.</translation>
+        <source>Install the essential packs for effects, transitions, and audio. You can keep using Dluz Film without them — installing unlocks updates when they improve.</source>
+        <translation>Instale os pacotes essenciais de efeitos, transições e áudio. Você pode continuar usando o Dluz Film sem eles — instalar desbloqueia atualizações quando eles melhoram.</translation>
     </message>
     <message>
         <source>%1… %2%</source>
@@ -233,8 +233,8 @@
         <translation>Fechar</translation>
     </message>
     <message>
-        <source>Let Cursor or Claude edit this project for you — add clips, change the timeline, and check how it looks. Only programs on this computer. Starts off each time you open Drift; turn it off when you finish.</source>
-        <translation>Permita que o Cursor ou o Claude edite este projeto para você — adicione clipes, altere a linha do tempo e veja como fica. Apenas programas neste computador. Começa desativado toda vez que você abre o Drift; desative quando terminar.</translation>
+        <source>Let Cursor or Claude edit this project for you — add clips, change the timeline, and check how it looks. Only programs on this computer. Starts off each time you open Dluz Film; turn it off when you finish.</source>
+        <translation>Permita que o Cursor ou o Claude edite este projeto para você — adicione clipes, altere a linha do tempo e veja como fica. Apenas programas neste computador. Começa desativado toda vez que você abre o Dluz Film; desative quando terminar.</translation>
     </message>
     <message>
         <source>Allow for this session</source>
@@ -543,8 +543,8 @@
 <context>
     <name>AndroidEditor</name>
     <message>
-        <source>Drift project (*.drift)</source>
-        <translation>Projeto do Drift (*.drift)</translation>
+        <source>Dluz Film project (*.drift)</source>
+        <translation>Projeto do Dluz Film (*.drift)</translation>
     </message>
     <message>
         <source>Save Project</source>
@@ -776,8 +776,8 @@
 <context>
     <name>AndroidMain</name>
     <message>
-        <source>Drift project (*.drift)</source>
-        <translation>Projeto do Drift (*.drift)</translation>
+        <source>Dluz Film project (*.drift)</source>
+        <translation>Projeto do Dluz Film (*.drift)</translation>
     </message>
     <message>
         <source>Save Project</source>
@@ -3285,7 +3285,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <source>Imported %n files into %1 folders. %2 files were skipped — Drift does not recognize their format. Drag them onto the bin to try anyway.</source>
+        <source>Imported %n files into %1 folders. %2 files were skipped — Dluz Film does not recognize their format. Drag them onto the bin to try anyway.</source>
         <translation type="unfinished">
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -4081,8 +4081,8 @@
 <context>
     <name>EditorHeader</name>
     <message>
-        <source>Drift project (*.drift)</source>
-        <translation>Projeto do Drift (*.drift)</translation>
+        <source>Dluz Film project (*.drift)</source>
+        <translation>Projeto do Dluz Film (*.drift)</translation>
     </message>
     <message>
         <source>Premiere Pro project (*.prproj)</source>
@@ -4213,8 +4213,8 @@
         <translation>Atualizar</translation>
     </message>
     <message>
-        <source>Drift %1 is available</source>
-        <translation>Drift %1 está disponível</translation>
+        <source>Dluz Film %1 is available</source>
+        <translation>Dluz Film %1 está disponível</translation>
     </message>
     <message>
         <source>Agent access</source>
@@ -6093,11 +6093,11 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Your graphics driver only provides %1. Drift&apos;s preview needs OpenGL 3.3.</source>
+        <source>Your graphics driver only provides %1. Dluz Film&apos;s preview needs OpenGL 3.3.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Drift could not start its GPU renderer, so the preview cannot draw.</source>
+        <source>Dluz Film could not start its GPU renderer, so the preview cannot draw.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7195,8 +7195,8 @@ Se a reprodução travar, experimente outro.</translation>
         <translation type="unfinished">Deixa botões, textos e ícones maiores. Essa é uma escala extra, além do tamanho já definido nas configurações de exibição do sistema. Entra em vigor após reiniciar.</translation>
     </message>
     <message>
-        <source>Restart Drift to apply this size.</source>
-        <translation type="unfinished">Reinicie o Drift para aplicar este tamanho.</translation>
+        <source>Restart Dluz Film to apply this size.</source>
+        <translation type="unfinished">Reinicie o Dluz Film para aplicar este tamanho.</translation>
     </message>
     <message>
         <source>Horizontal mouse-wheel pan</source>
@@ -7243,8 +7243,8 @@ Se a reprodução travar, experimente outro.</translation>
         <translation type="unfinished">Verificar ao iniciar</translation>
     </message>
     <message>
-        <source>Ask GitHub once a day whether a newer Drift has been released</source>
-        <translation type="unfinished">Perguntar ao GitHub uma vez por dia se saiu uma versão mais nova do Drift</translation>
+        <source>Ask GitHub once a day whether a newer Dluz Film has been released</source>
+        <translation type="unfinished">Perguntar ao GitHub uma vez por dia se saiu uma versão mais nova do Dluz Film</translation>
     </message>
     <message>
         <source>Checking…</source>
@@ -7255,8 +7255,8 @@ Se a reprodução travar, experimente outro.</translation>
         <translation type="unfinished">Verificar agora</translation>
     </message>
     <message>
-        <source>Drift %1</source>
-        <translation type="unfinished">Drift %1</translation>
+        <source>Dluz Film %1</source>
+        <translation type="unfinished">Dluz Film %1</translation>
     </message>
     <message>
         <source>Extra packs</source>
@@ -9405,8 +9405,8 @@ Se a reprodução travar, experimente outro.</translation>
         <translation>O Drift %1 é a versão mais recente.</translation>
     </message>
     <message>
-        <source>Drift %1 is available.</source>
-        <translation>O Drift %1 está disponível.</translation>
+        <source>Dluz Film %1 is available.</source>
+        <translation>O Dluz Film %1 está disponível.</translation>
     </message>
 </context>
 <context>
@@ -9416,8 +9416,8 @@ Se a reprodução travar, experimente outro.</translation>
         <translation>Atualização disponível</translation>
     </message>
     <message>
-        <source>Drift %1 is available</source>
-        <translation>O Drift %1 está disponível</translation>
+        <source>Dluz Film %1 is available</source>
+        <translation>O Dluz Film %1 está disponível</translation>
     </message>
     <message>
         <source>You have %1.</source>
@@ -9517,7 +9517,7 @@ Se a reprodução travar, experimente outro.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Drift could not create an OpenGL context, so it cannot draw its interface or render the preview.
+        <source>Dluz Film could not create an OpenGL context, so it cannot draw its interface or render the preview.
 
 Install or update your graphics driver.</source>
         <translation type="unfinished"></translation>
@@ -9527,7 +9527,7 @@ Install or update your graphics driver.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Drift could not create an OpenGL 3.3 core profile context, though this driver reports OpenGL %1.%2 (%3).
+        <source>Dluz Film could not create an OpenGL 3.3 core profile context, though this driver reports OpenGL %1.%2 (%3).
 
 The video preview cannot render. Updating your graphics driver may help.</source>
         <translation type="unfinished"></translation>
@@ -9537,7 +9537,7 @@ The video preview cannot render. Updating your graphics driver may help.</source
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Drift needs OpenGL 3.3, but this graphics driver only provides OpenGL %1.%2 (%3).
+        <source>Dluz Film needs OpenGL 3.3, but this graphics driver only provides OpenGL %1.%2 (%3).
 
 The video preview cannot render, and Drift may not start at all. Update your graphics driver, or run Drift on a machine with a newer GPU.</source>
         <translation type="unfinished"></translation>

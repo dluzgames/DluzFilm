@@ -23,7 +23,7 @@ Item {
         previewFullscreen = false
     }
 
-    readonly property var projectFilter: [qsTr("Drift project (*.drift)")]
+    readonly property var projectFilter: [qsTr("Dluz Film project (*.drift)")]
 
     function openAssetsTab(tabId) {
         sheetKind = "assets"

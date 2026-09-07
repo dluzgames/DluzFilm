@@ -129,8 +129,8 @@ int runHeadless(int argc, char *argv[])
     // GUI path sets here: with the attribute on and no QQuickWindow to build a share
     // context from, GlRuntime::initGlObjects() refuses to create one of its own and
     // nothing renders at all.
-    QCoreApplication::setApplicationName("CutWire Drift");
-    QCoreApplication::setOrganizationName("CutWire Drift");
+    QCoreApplication::setApplicationName("Dluz Film");
+    QCoreApplication::setOrganizationName("Dluz Film");
 
     QApplication app(argc, argv);
     AppController::installUiTranslators();
