@@ -5125,7 +5125,8 @@ QJsonObject AppController::removeSilence(int trackIndex, int clipIndex, double t
     return mcpRemoveSilence(trackIndex, clipIndex, threshold, minDuration, padding);
 }
 
-bool AppController::importMediaToTimeline(const QString &filePath, double atSeconds, int targetTrack)
+bool AppController::importMediaToTimeline(const QString &filePath, double atSeconds, int targetTrack,
+                                          const QString &autoEffectId, const QString &autoBlendMode)
 {
     if (!m_assetLibrary || filePath.isEmpty())
         return false;
@@ -5163,10 +5164,22 @@ bool AppController::importMediaToTimeline(const QString &filePath, double atSeco
             }
             if (hasOverlap && clipType == drift::ClipType::Video) {
                 addClipFromAssetOnNewTrack(assetIdx, pos);
+                if (!autoEffectId.isEmpty() && m_selectedTrack >= 0 && m_selectedClip >= 0) {
+                    addEffect(m_selectedTrack, m_selectedClip, autoEffectId);
+                }
+                if (!autoBlendMode.isEmpty() && m_selectedTrack >= 0 && m_selectedClip >= 0) {
+                    setClipBlendMode(m_selectedTrack, m_selectedClip, autoBlendMode);
+                }
                 return true;
             }
         }
         addClipFromAsset(assetIdx);
+    }
+    if (!autoEffectId.isEmpty() && m_selectedTrack >= 0 && m_selectedClip >= 0) {
+        addEffect(m_selectedTrack, m_selectedClip, autoEffectId);
+    }
+    if (!autoBlendMode.isEmpty() && m_selectedTrack >= 0 && m_selectedClip >= 0) {
+        setClipBlendMode(m_selectedTrack, m_selectedClip, autoBlendMode);
     }
     return true;
 }

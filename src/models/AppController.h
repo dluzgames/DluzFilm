@@ -900,7 +900,9 @@ public:
     Q_INVOKABLE void splitClipRightAt(int trackIndex, int clipIndex, double seconds);
     Q_INVOKABLE QJsonObject detectSilence(int trackIndex = -1, int clipIndex = -1, double threshold = -30.0, double minDuration = 0.3, double padding = 0.08);
     Q_INVOKABLE QJsonObject removeSilence(int trackIndex = -1, int clipIndex = -1, double threshold = -30.0, double minDuration = 0.3, double padding = 0.08);
-    Q_INVOKABLE bool importMediaToTimeline(const QString &filePath, double atSeconds = -1.0, int targetTrack = -1);
+    Q_INVOKABLE bool importMediaToTimeline(const QString &filePath, double atSeconds = -1.0, int targetTrack = -1,
+                                           const QString &autoEffectId = QString(),
+                                           const QString &autoBlendMode = QString());
     Q_INVOKABLE void trimClipLeft(int trackIndex, int clipIndex, double newStart);
     Q_INVOKABLE void trimClipRight(int trackIndex, int clipIndex, double newEnd);
     Q_INVOKABLE void setClipTrim(int trackIndex, int clipIndex, double inPoint, double outPoint);

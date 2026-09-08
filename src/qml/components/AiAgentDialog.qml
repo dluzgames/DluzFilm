@@ -326,7 +326,7 @@ ThemedDialog {
                                             color: Theme.foreground
                                         }
                                         Text {
-                                            text: qsTr("Vinheta animada transparente para timeline")
+                                            text: qsTr("Vinheta animada com Chroma Key automático")
                                             font.family: Theme.fontFamily
                                             font.pixelSize: Theme.fontSizeTiny
                                             color: Theme.mutedForeground

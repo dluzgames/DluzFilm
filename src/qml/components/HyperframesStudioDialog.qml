@@ -27,7 +27,26 @@ ThemedDialog {
             width: parent.width
             size: "sm"
             wrapMode: Text.WordWrap
-            text: qsTr("Crie lower-thirds, vinhetas, cards de redes sociais e animações gráficas profissionais com HyperFrames (HTML/CSS/GSAP) renderizados com canal alfa (transparência) direto para a sua timeline.")
+            text: qsTr("Crie lower-thirds, vinhetas, cards de redes sociais e animações gráficas profissionais com HyperFrames renderizados com Chroma Key (fundo verde removido automaticamente) direto para a sua timeline.")
+        }
+
+        RowLayout {
+            width: parent.width
+            spacing: Theme.spacingXs
+
+            Rectangle {
+                width: 8
+                height: 8
+                radius: 4
+                color: "#22c55e"
+            }
+
+            ThemedLabel {
+                text: qsTr("Chroma Key Automático Ativado (elimina tela branca / verde)")
+                size: "xs"
+                color: "#22c55e"
+                font.weight: Font.DemiBold
+            }
         }
 
         // Seletor de Modelo

@@ -306,7 +306,8 @@ QString AiAgentController::buildSystemPrompt() const
                                   "- Criar card social: [ACTION:HYPERFRAMES|social_card|Nome|@handle]\n"
                                   "- Remover silêncios: [ACTION:REMOVE_SILENCE|-30|0.3|0.08]\n"
                                   "- Sintetizar voz com OmniVoice: [ACTION:CLONE_VOICE|omnivoice|texto completo aqui]\n"
-                                  "- Gerar vídeo OmniFlash: [ACTION:OMNIFLASH|16:9|prompt da cena em inglês]\n");
+                                  "- Gerar vídeo OmniFlash: [ACTION:OMNIFLASH|16:9|prompt da cena em inglês]\n"
+                                  "- Ativar Chroma Key no clip selecionado: [ACTION:CHROMA_KEY]\n");
 
     return info;
 }
@@ -740,7 +741,25 @@ void AiAgentController::executeActionFromResponse(const QString &response, const
         return;
     }
 
-    // 5. Fallback Intent Detection (if model didn't emit [ACTION:...])
+    // 5. Check for [ACTION:CHROMA_KEY...]
+    static const QRegularExpression chromaRegex(QStringLiteral(R"(\[ACTION:CHROMA_KEY[^\]]*\])"), QRegularExpression::CaseInsensitiveOption);
+    if (chromaRegex.match(response).hasMatch()) {
+        if (m_controller) {
+            const int tIdx = m_controller->selectedTrack();
+            const int cIdx = m_controller->selectedClip();
+            if (tIdx >= 0 && cIdx >= 0) {
+                m_controller->addEffect(tIdx, cIdx, QStringLiteral("key.chroma"));
+                appendChatMessage(QStringLiteral("assistant"),
+                                  tr("✅ Efeito Chroma Key (Remoção de Fundo Verde) ativado no clip selecionado!"));
+            } else {
+                appendChatMessage(QStringLiteral("assistant"),
+                                  tr("⚠️ Nenhum clip selecionado na timeline. Selecione um clip primeiro para ativar o Chroma Key."));
+            }
+        }
+        return;
+    }
+
+    // 6. Fallback Intent Detection (if model didn't emit [ACTION:...])
     const QString pLower = userPrompt.toLower();
     if (pLower.contains(QStringLiteral("lower third")) || pLower.contains(QStringLiteral("lower-third")) ||
         pLower.contains(QStringLiteral("vinheta")) || pLower.contains(QStringLiteral("card de título")) ||
@@ -771,6 +790,23 @@ void AiAgentController::executeActionFromResponse(const QString &response, const
     if (pLower.contains(QStringLiteral("locução")) || pLower.contains(QStringLiteral("locucao")) ||
         (pLower.contains(QStringLiteral("voz")) && (pLower.contains(QStringLiteral("clon")) || pLower.contains(QStringLiteral("dluz"))))) {
         synthesizeVoice(QStringLiteral("Fala melhores, beleza? Bem-vindos ao canal DLuz Games!"), QStringLiteral("omnivoice"));
+        return;
+    }
+
+    if (pLower.contains(QStringLiteral("chroma")) || pLower.contains(QStringLiteral("crhoma")) ||
+        pLower.contains(QStringLiteral("fundo verde"))) {
+        if (m_controller) {
+            const int tIdx = m_controller->selectedTrack();
+            const int cIdx = m_controller->selectedClip();
+            if (tIdx >= 0 && cIdx >= 0) {
+                m_controller->addEffect(tIdx, cIdx, QStringLiteral("key.chroma"));
+                appendChatMessage(QStringLiteral("assistant"),
+                                  tr("✅ Efeito Chroma Key (Remoção de Fundo Verde) ativado no clip selecionado!"));
+            } else {
+                appendChatMessage(QStringLiteral("assistant"),
+                                  tr("⚠️ Nenhum clip selecionado na timeline. Selecione um clip primeiro para ativar o Chroma Key."));
+            }
+        }
         return;
     }
 }
@@ -805,16 +841,23 @@ void AiAgentController::createHyperframes(const QString &title, const QString &s
     QString html;
     if (!customHtml.isEmpty()) {
         html = customHtml;
+        if (html.contains(QStringLiteral("background:transparent")))
+            html.replace(QStringLiteral("background:transparent"), QStringLiteral("background:#00ff00"));
+        if (html.contains(QStringLiteral("background: transparent")))
+            html.replace(QStringLiteral("background: transparent"), QStringLiteral("background:#00ff00"));
+        if (!html.contains(QStringLiteral("#00ff00"))) {
+            html.replace(QStringLiteral("<style>"), QStringLiteral("<style>body { background: #00ff00 !important; } "));
+        }
     } else if (templateType == QStringLiteral("title_card")) {
         html = QString::fromUtf8(R"HTML(<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <style>
-    body { margin:0; padding:0; background:transparent; overflow:hidden; width:1920px; height:1080px; display:flex; justify-content:center; align-items:center; font-family:'Segoe UI',system-ui,sans-serif; }
+    body { margin:0; padding:0; background:#00ff00; overflow:hidden; width:1920px; height:1080px; display:flex; justify-content:center; align-items:center; font-family:'Segoe UI',system-ui,sans-serif; }
     .box { text-align:center; opacity:0; transform:scale(0.9); }
     .title { font-size:76px; font-weight:900; color:#ffffff; text-transform:uppercase; letter-spacing:4px; text-shadow:0 8px 30px rgba(0,0,0,0.9); }
-    .subtitle { font-size:30px; font-weight:600; color:#16a34a; margin-top:16px; letter-spacing:3px; }
+    .subtitle { font-size:32px; font-weight:700; color:#f59e0b; margin-top:16px; letter-spacing:3px; text-shadow:0 4px 16px rgba(0,0,0,0.8); }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 </head>
@@ -840,11 +883,11 @@ void AiAgentController::createHyperframes(const QString &title, const QString &s
 <head>
   <meta charset="utf-8">
   <style>
-    body { margin:0; padding:0; background:transparent; overflow:hidden; width:1920px; height:1080px; font-family:'Segoe UI',system-ui,sans-serif; }
-    .card { position:absolute; bottom:100px; right:100px; background:rgba(20,20,20,0.9); border:2px solid #16a34a; border-radius:20px; padding:18px 32px; display:flex; align-items:center; box-shadow:0 10px 40px rgba(0,0,0,0.8); opacity:0; transform:translateY(40px); }
-    .avatar { width:56px; height:56px; border-radius:50%; background:#16a34a; display:flex; justify-content:center; align-items:center; font-size:28px; font-weight:bold; color:white; margin-right:18px; }
-    .name { font-size:26px; font-weight:800; color:white; }
-    .handle { font-size:18px; color:#22c55e; font-weight:600; margin-top:2px; }
+    body { margin:0; padding:0; background:#00ff00; overflow:hidden; width:1920px; height:1080px; font-family:'Segoe UI',system-ui,sans-serif; }
+    .card { position:absolute; bottom:100px; right:100px; background:rgba(18,18,22,0.96); border:2px solid #38bdf8; border-radius:20px; padding:18px 32px; display:flex; align-items:center; box-shadow:0 10px 40px rgba(0,0,0,0.8); opacity:0; transform:translateY(40px); }
+    .avatar { width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg, #f59e0b, #ef4444); display:flex; justify-content:center; align-items:center; font-size:26px; font-weight:bold; color:white; margin-right:18px; box-shadow:0 4px 12px rgba(245,158,11,0.4); }
+    .name { font-size:26px; font-weight:800; color:#ffffff; }
+    .handle { font-size:18px; color:#38bdf8; font-weight:600; margin-top:2px; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 </head>
@@ -873,12 +916,12 @@ void AiAgentController::createHyperframes(const QString &title, const QString &s
 <head>
   <meta charset="utf-8">
   <style>
-    body { margin:0; padding:0; background:transparent; overflow:hidden; width:1920px; height:1080px; font-family:'Segoe UI',system-ui,sans-serif; }
+    body { margin:0; padding:0; background:#00ff00; overflow:hidden; width:1920px; height:1080px; font-family:'Segoe UI',system-ui,sans-serif; }
     .wrapper { position:absolute; bottom:120px; left:100px; display:flex; align-items:center; }
-    .accent-bar { width:8px; height:72px; background:linear-gradient(to bottom, #16a34a, #22c55e); border-radius:4px; transform:scaleY(0); }
-    .content { margin-left:20px; opacity:0; transform:translateX(-30px); }
-    .title { font-size:38px; font-weight:800; color:#ffffff; text-shadow:0 4px 12px rgba(0,0,0,0.8); }
-    .subtitle { font-size:22px; font-weight:500; color:#22c55e; margin-top:4px; letter-spacing:1px; text-shadow:0 2px 8px rgba(0,0,0,0.8); }
+    .accent-bar { width:8px; height:76px; background:linear-gradient(to bottom, #f59e0b, #ef4444); border-radius:4px; transform:scaleY(0); box-shadow:0 0 16px rgba(245,158,11,0.6); }
+    .content { margin-left:20px; opacity:0; transform:translateX(-30px); background:rgba(18,18,22,0.92); padding:10px 24px; border-radius:12px; border-left:1px solid rgba(255,255,255,0.1); }
+    .title { font-size:36px; font-weight:800; color:#ffffff; text-shadow:0 4px 12px rgba(0,0,0,0.9); }
+    .subtitle { font-size:22px; font-weight:600; color:#f59e0b; margin-top:4px; letter-spacing:1px; text-shadow:0 2px 8px rgba(0,0,0,0.8); }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 </head>
@@ -928,10 +971,10 @@ void AiAgentController::createHyperframes(const QString &title, const QString &s
 
         if (exitCode == 0 && QFile::exists(outFile)) {
             if (this->m_controller)
-                this->m_controller->importMediaToTimeline(outFile);
+                this->m_controller->importMediaToTimeline(outFile, -1.0, -1, QStringLiteral("key.chroma"));
             this->appendChatMessage(QStringLiteral("assistant"),
-                              QObject::tr("🎬 HyperFrames renderizado com sucesso e inserido na timeline:\n%1").arg(outFile));
-            emit this->hyperframesFinished(true, outFile, QObject::tr("Renderizado e adicionado à timeline!"));
+                              QObject::tr("🎬 HyperFrames renderizado com sucesso (Chroma Key ativado) e inserido na timeline:\n%1").arg(outFile));
+            emit this->hyperframesFinished(true, outFile, QObject::tr("Renderizado com Chroma Key e adicionado à timeline!"));
         } else {
             const QString err = QString::fromUtf8(proc->readAllStandardError());
             this->appendChatMessage(QStringLiteral("assistant"),
