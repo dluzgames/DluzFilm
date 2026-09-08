@@ -42,7 +42,7 @@ ThemedDialog {
                 width: parent.width
                 size: "sm"
                 wrapMode: Text.WordWrap
-                text: qsTr("Let Cursor or Claude edit this project for you — add clips, change the timeline, and check how it looks. Only programs on this computer. Starts off each time you open Dluz Film; turn it off when you finish.")
+                text: qsTr("Let Antigravity, Codex, Cursor or Claude edit this project for you — add clips, change the timeline, and check how it looks. Only programs on this computer. Starts off each time you open Dluz Film; turn it off when you finish.")
             }
 
             ThemedSwitch {
@@ -63,7 +63,7 @@ ThemedDialog {
                 width: parent.width
                 visible: !EditorState.mcpRunning
                 wrapMode: Text.WordWrap
-                text: qsTr("Turn this on, then copy the setup for Cursor or Claude and paste it into that app.")
+                text: qsTr("Turn this on, then copy the setup for Antigravity, Codex, Cursor or Claude and paste it into that app.")
             }
 
             Column {
@@ -95,6 +95,30 @@ ThemedDialog {
                     width: parent.width
                     wrapMode: Text.WordWrap
                     text: qsTr("Copy the setup for the assistant you use. You only need one.")
+                }
+
+                ThemedButton {
+                    width: parent.width
+                    variant: "secondary"
+                    glyph: Theme.icons.copy
+                    text: qsTr("Copy for Antigravity")
+                    tooltip: qsTr("Copy MCP setup to paste into Antigravity (mcp_config.json)")
+                    onClicked: {
+                        EditorState.copyMcpAntigravitySnippet()
+                        Toasts.success(qsTr("Copied for Antigravity"))
+                    }
+                }
+
+                ThemedButton {
+                    width: parent.width
+                    variant: "secondary"
+                    glyph: Theme.icons.copy
+                    text: qsTr("Copy for Codex")
+                    tooltip: qsTr("Copy command to add MCP server to Codex CLI")
+                    onClicked: {
+                        EditorState.copyMcpCodexCommand()
+                        Toasts.success(qsTr("Copied for Codex"))
+                    }
                 }
 
                 ThemedButton {

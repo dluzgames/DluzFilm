@@ -9542,4 +9542,123 @@ The video preview cannot render, and Drift may not start at all. Update your gra
         <translation type="unfinished" />
     </message>
 </context>
+<context>
+    <name>AgentAccessDialog</name>
+    <message>
+        <source>Agent access</source>
+        <translation>Acesso do agente</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Fechar</translation>
+    </message>
+    <message>
+        <source>Let Antigravity, Codex, Cursor or Claude edit this project for you — add clips, change the timeline, and check how it looks. Only programs on this computer. Starts off each time you open Dluz Film; turn it off when you finish.</source>
+        <translation>Permita que o Antigravity, Codex, Cursor ou Claude edite este projeto para você — adicione clipes, altere a linha do tempo e visualize o resultado. Apenas programas neste computador. Inicia desligado toda vez que você abre o Dluz Film; desligue quando terminar.</translation>
+    </message>
+    <message>
+        <source>Allow for this session</source>
+        <translation>Permitir nesta sessão</translation>
+    </message>
+    <message>
+        <source>Allows an assistant on this computer to edit this project until you turn it off or quit.</source>
+        <translation>Permite que um assistente neste computador edite este projeto até você desativá-lo ou fechar o programa.</translation>
+    </message>
+    <message>
+        <source>Turn this on, then copy the setup for Antigravity, Codex, Cursor or Claude and paste it into that app.</source>
+        <translation>Ative esta opção, copie a configuração do Antigravity, Codex, Cursor ou Claude e cole no aplicativo correspondente.</translation>
+    </message>
+    <message>
+        <source>Access is on</source>
+        <translation>Acesso ativado</translation>
+    </message>
+    <message>
+        <source>Copy the setup for the assistant you use. You only need one.</source>
+        <translation>Copie a configuração para o assistente que você usa. Você só precisa de um.</translation>
+    </message>
+    <message>
+        <source>Copy for Antigravity</source>
+        <translation>Copiar para o Antigravity</translation>
+    </message>
+    <message>
+        <source>Copy MCP setup to paste into Antigravity (mcp_config.json)</source>
+        <translation>Copiar configuração MCP para colar no Antigravity (mcp_config.json)</translation>
+    </message>
+    <message>
+        <source>Copied for Antigravity</source>
+        <translation>Copiado para o Antigravity</translation>
+    </message>
+    <message>
+        <source>Copy for Codex</source>
+        <translation>Copiar para o Codex</translation>
+    </message>
+    <message>
+        <source>Copy command to add MCP server to Codex CLI</source>
+        <translation>Copiar comando para adicionar o servidor MCP ao Codex CLI</translation>
+    </message>
+    <message>
+        <source>Copied for Codex</source>
+        <translation>Copiado para o Codex</translation>
+    </message>
+    <message>
+        <source>Copy for Cursor</source>
+        <translation>Copiar para o Cursor</translation>
+    </message>
+    <message>
+        <source>Copy a setup snippet to paste into Cursor</source>
+        <translation>Copiar trecho de configuração para colar no Cursor</translation>
+    </message>
+    <message>
+        <source>Copied for Cursor</source>
+        <translation>Copiado para o Cursor</translation>
+    </message>
+    <message>
+        <source>Copy for Claude</source>
+        <translation>Copiar para o Claude</translation>
+    </message>
+    <message>
+        <source>Copy a command to paste into Claude Code</source>
+        <translation>Copiar comando para colar no Claude Code</translation>
+    </message>
+    <message>
+        <source>Copied for Claude</source>
+        <translation>Copiado para o Claude</translation>
+    </message>
+    <message>
+        <source>Paste that into the assistant. To help it use this editor, copy the how-to next and paste it into the chat.</source>
+        <translation>Cole no assistente. Para ajudá-lo a usar este editor, copie o guia de instruções a seguir e cole no chat.</translation>
+    </message>
+    <message>
+        <source>Copy a how-to for the agent</source>
+        <translation>Copiar guia para o agente</translation>
+    </message>
+    <message>
+        <source>A short list of what the agent can do here — paste it into the chat</source>
+        <translation>Uma lista rápida do que o agente pode fazer aqui — cole no chat</translation>
+    </message>
+    <message>
+        <source>Copied how-to</source>
+        <translation>Guia copiado</translation>
+    </message>
+    <message>
+        <source>More options</source>
+        <translation>Mais opções</translation>
+    </message>
+    <message>
+        <source>For a different assistant, copy a one-time setup. The address and key are already in the Cursor and Claude copies above.</source>
+        <translation>Para outro assistente, copie a configuração única. O endereço e a chave já estão nas cópias acima.</translation>
+    </message>
+    <message>
+        <source>Copy one-time setup</source>
+        <translation>Copiar configuração única</translation>
+    </message>
+    <message>
+        <source>Add this once to the assistant’s config. Access still has to be turned on here.</source>
+        <translation>Adicione uma vez na configuração do assistente. O acesso ainda deve ser ativado aqui.</translation>
+    </message>
+    <message>
+        <source>Copied one-time setup</source>
+        <translation>Configuração única copiada</translation>
+    </message>
+</context>
 </TS>

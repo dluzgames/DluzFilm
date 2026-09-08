@@ -18074,6 +18074,25 @@ QString AppController::mcpCursorSnippet() const
 #endif
 }
 
+QString AppController::mcpAntigravitySnippet() const
+{
+    const QString appPath = QDir::toNativeSeparators(QCoreApplication::applicationFilePath());
+    const QJsonObject server{
+        {QStringLiteral("command"), appPath},
+        {QStringLiteral("args"), QJsonArray{QStringLiteral("--mcp-stdio")}},
+    };
+    const QJsonObject root{
+        {QStringLiteral("mcpServers"), QJsonObject{{QStringLiteral("drift"), server}}},
+    };
+    return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Indented));
+}
+
+QString AppController::mcpCodexCommand() const
+{
+    const QString appPath = QDir::toNativeSeparators(QCoreApplication::applicationFilePath());
+    return QStringLiteral("codex mcp add drift -- \"%1\" --mcp-stdio").arg(appPath);
+}
+
 QString AppController::mcpClaudeCommand() const
 {
 #ifndef Q_OS_ANDROID
@@ -18120,6 +18139,16 @@ void copyToClipboard(const QString &text)
 }
 
 } // namespace
+
+void AppController::copyMcpAntigravitySnippet()
+{
+    copyToClipboard(mcpAntigravitySnippet());
+}
+
+void AppController::copyMcpCodexCommand()
+{
+    copyToClipboard(mcpCodexCommand());
+}
 
 void AppController::copyMcpCursorSnippet()
 {

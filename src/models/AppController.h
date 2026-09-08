@@ -457,9 +457,13 @@ public:
     QString mcpToken() const;
     int mcpPort() const;
     QString mcpError() const;
+    QString mcpAntigravitySnippet() const;
+    QString mcpCodexCommand() const;
     QString mcpCursorSnippet() const;
     QString mcpClaudeCommand() const;
     QString mcpStdioSnippet() const;
+    Q_INVOKABLE void copyMcpAntigravitySnippet();
+    Q_INVOKABLE void copyMcpCodexCommand();
     Q_INVOKABLE void copyMcpCursorSnippet();
     Q_INVOKABLE void copyMcpClaudeCommand();
     Q_INVOKABLE void copyMcpStdioSnippet();
