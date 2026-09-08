@@ -30,18 +30,7 @@ QString sessionFilePath()
     if (!driftOverride.isEmpty())
         return driftOverride;
 
-    const QString primary = QDir(defaultSessionDir()).filePath(QStringLiteral("mcp-session.json"));
-    if (QFile::exists(primary))
-        return primary;
-
-    QString base = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
-    if (base.isEmpty())
-        base = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-    const QString legacy = QDir(base).filePath(QStringLiteral("drift/mcp-session.json"));
-    if (QFile::exists(legacy))
-        return legacy;
-
-    return primary;
+    return QDir(defaultSessionDir()).filePath(QStringLiteral("mcp-session.json"));
 }
 
 bool writeSessionFile(quint16 port, const QString &token)
@@ -94,7 +83,16 @@ void removeSessionFile()
 
 bool readSessionFile(quint16 *port, QString *token, QString *error)
 {
-    QFile file(sessionFilePath());
+    QString path = sessionFilePath();
+    if (!QFile::exists(path)) {
+        QString base = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+        if (base.isEmpty())
+            base = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+        const QString legacy = QDir(base).filePath(QStringLiteral("drift/mcp-session.json"));
+        if (QFile::exists(legacy))
+            path = legacy;
+    }
+    QFile file(path);
     if (!file.exists()) {
         if (error) {
             *error = QStringLiteral(
