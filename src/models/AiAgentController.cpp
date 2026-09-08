@@ -55,6 +55,44 @@ QString findCodexExecutable()
     return QString();
 }
 
+QString findAntigravityExecutable()
+{
+    QString exe = QStandardPaths::findExecutable(QStringLiteral("agy"));
+    if (!exe.isEmpty() && QFile::exists(exe))
+        return exe;
+
+    QString localPath = QDir::homePath() + QStringLiteral("/AppData/Local/agy/bin/agy.exe");
+    if (QFile::exists(localPath))
+        return localPath;
+
+    QString defaultPath = QStringLiteral("C:/Users/dluzgg/AppData/Local/agy/bin/agy.exe");
+    if (QFile::exists(defaultPath))
+        return defaultPath;
+
+    return QString();
+}
+
+QString findOpencodeExecutable()
+{
+    QString exe = QStandardPaths::findExecutable(QStringLiteral("opencode"));
+    if (!exe.isEmpty() && QFile::exists(exe))
+        return exe;
+
+    QString localExe = QDir::homePath() + QStringLiteral("/AppData/Roaming/npm/node_modules/opencode-ai/bin/opencode.exe");
+    if (QFile::exists(localExe))
+        return localExe;
+
+    QString localCmd = QDir::homePath() + QStringLiteral("/AppData/Roaming/npm/opencode.cmd");
+    if (QFile::exists(localCmd))
+        return localCmd;
+
+    QString defaultPath = QStringLiteral("C:/Users/dluzgg/AppData/Roaming/npm/node_modules/opencode-ai/bin/opencode.exe");
+    if (QFile::exists(defaultPath))
+        return defaultPath;
+
+    return QString();
+}
+
 } // namespace
 
 bool AiAgentController::isCodexAvailable() const
@@ -67,6 +105,26 @@ QString AiAgentController::codexExecutablePath() const
     return findCodexExecutable();
 }
 
+bool AiAgentController::isAntigravityAvailable() const
+{
+    return !findAntigravityExecutable().isEmpty();
+}
+
+QString AiAgentController::antigravityExecutablePath() const
+{
+    return findAntigravityExecutable();
+}
+
+bool AiAgentController::isOpencodeCliAvailable() const
+{
+    return !findOpencodeExecutable().isEmpty();
+}
+
+QString AiAgentController::opencodeExecutablePath() const
+{
+    return findOpencodeExecutable();
+}
+
 AiAgentController::AiAgentController(AppController *controller, QObject *parent)
     : QObject(parent)
     , m_controller(controller)
@@ -75,7 +133,7 @@ AiAgentController::AiAgentController(AppController *controller, QObject *parent)
 
     // Default welcome message
     appendChatMessage(QStringLiteral("assistant"),
-                      tr("Olá! Sou o seu Agente IA interno do Dluz Film (com suporte nativo a Codex CLI, Gemini, OpenRouter, Groq e OpenCode). Posso ajudar você a criar vinhetas e lower-thirds animados com HyperFrames, remover silêncios automaticamente, clonar voz com OmniVoice e gerar cenas com OmniFlash. Como posso ajudar agora?"));
+                      tr("Olá! Sou o seu Agente IA interno do Dluz Film (com suporte nativo a Antigravity CLI, Codex CLI, OpenCode, Gemini, Groq e OpenRouter). Posso ajudar você a criar vinhetas e lower-thirds animados com HyperFrames, remover silêncios automaticamente, clonar voz com OmniVoice e gerar cenas com OmniFlash. Como posso ajudar agora?"));
 }
 
 AiAgentController::~AiAgentController()
@@ -89,7 +147,14 @@ AiAgentController::~AiAgentController()
 void AiAgentController::loadSettings()
 {
     QSettings s(QStringLiteral("Dluz Film"), QStringLiteral("Dluz Film"));
-    const QString defProvider = isCodexAvailable() ? QStringLiteral("codex") : QStringLiteral("gemini");
+    QString defProvider = QStringLiteral("gemini");
+    if (isAntigravityAvailable())
+        defProvider = QStringLiteral("antigravity");
+    else if (isCodexAvailable())
+        defProvider = QStringLiteral("codex");
+    else if (isOpencodeCliAvailable())
+        defProvider = QStringLiteral("opencode");
+
     m_provider = s.value(QStringLiteral("ai/provider"), defProvider).toString();
     m_geminiKey = s.value(QStringLiteral("ai/gemini_key")).toString();
     m_openrouterKey = s.value(QStringLiteral("ai/openrouter_key")).toString();
@@ -293,6 +358,112 @@ void AiAgentController::sendMessage(const QString &prompt)
         proc->write(fullPrompt.toUtf8());
         proc->closeWriteChannel();
         return;
+    }
+
+    if (m_provider == QStringLiteral("antigravity")) {
+        const QString agyExe = findAntigravityExecutable();
+        if (agyExe.isEmpty() || !QFile::exists(agyExe)) {
+            setBusy(false);
+            appendChatMessage(QStringLiteral("assistant"),
+                              tr("⚠️ Executável do Antigravity CLI (agy) não foi encontrado no sistema. Verifique a instalação."));
+            return;
+        }
+
+        const QString fullPrompt = sysPrompt + QStringLiteral("\n\nInstrução do Usuário no Dluz Film:\n") + prompt;
+
+        QStringList args{
+            QStringLiteral("--output-format"), QStringLiteral("text"),
+            QStringLiteral("--effort"), QStringLiteral("low"),
+            QStringLiteral("-p"), fullPrompt,
+            QStringLiteral("--dangerously-skip-permissions")
+        };
+
+        if (!m_model.trimmed().isEmpty()) {
+            args << QStringLiteral("--model") << m_model.trimmed();
+        }
+
+        auto *proc = new QProcess(this);
+        setupSilentProcess(proc);
+
+        connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, proc](int exitCode, QProcess::ExitStatus exitStatus) {
+            Q_UNUSED(exitStatus);
+            proc->deleteLater();
+            this->setBusy(false);
+
+            QString replyText = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+            if (replyText.isEmpty()) {
+                const QString errOut = QString::fromUtf8(proc->readAllStandardError()).trimmed();
+                if (!errOut.isEmpty()) {
+                    replyText = tr("⚠️ Erro do Antigravity CLI: %1").arg(errOut);
+                } else {
+                    replyText = tr("⚠️ Antigravity CLI finalizou com código %1 sem resposta.").arg(exitCode);
+                }
+            }
+
+            if (!replyText.isEmpty()) {
+                this->appendChatMessage(QStringLiteral("assistant"), replyText);
+                this->executeActionFromResponse(replyText);
+            }
+        });
+
+        proc->start(agyExe, args);
+        return;
+    }
+
+    if (m_provider == QStringLiteral("opencode")) {
+        const QString opencodeExe = findOpencodeExecutable();
+        // If opencode CLI exists and user didn't specify a custom remote key, run via CLI
+        if (!opencodeExe.isEmpty() && QFile::exists(opencodeExe) && m_opencodeKey.trimmed().isEmpty()) {
+            const QString fullPrompt = sysPrompt + QStringLiteral("\n\nInstrução do Usuário no Dluz Film:\n") + prompt;
+
+            const QString model = m_model.trimmed().isEmpty() ? QStringLiteral("opencode/ling-3.0-flash-fin-free") : m_model.trimmed();
+
+            QStringList args{
+                QStringLiteral("run"),
+                fullPrompt,
+                QStringLiteral("--format"), QStringLiteral("default"),
+                QStringLiteral("-m"), model
+            };
+
+            auto *proc = new QProcess(this);
+            setupSilentProcess(proc);
+
+            connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                    this, [this, proc](int exitCode, QProcess::ExitStatus exitStatus) {
+                Q_UNUSED(exitStatus);
+                proc->deleteLater();
+                this->setBusy(false);
+
+                QString raw = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+                QStringList lines = raw.split(QLatin1Char('\n'));
+                QStringList cleanedLines;
+                for (const QString &line : lines) {
+                    QString trimmed = line.trimmed();
+                    if (trimmed.startsWith(QLatin1String("> ")) || trimmed.startsWith(QLatin1String("build ·")))
+                        continue;
+                    cleanedLines << line;
+                }
+                QString replyText = cleanedLines.join(QLatin1Char('\n')).trimmed();
+
+                if (replyText.isEmpty()) {
+                    const QString errOut = QString::fromUtf8(proc->readAllStandardError()).trimmed();
+                    if (!errOut.isEmpty()) {
+                        replyText = tr("⚠️ Erro do OpenCode CLI: %1").arg(errOut);
+                    } else {
+                        replyText = tr("⚠️ OpenCode CLI finalizou com código %1 sem resposta.").arg(exitCode);
+                    }
+                }
+
+                if (!replyText.isEmpty()) {
+                    this->appendChatMessage(QStringLiteral("assistant"), replyText);
+                    this->executeActionFromResponse(replyText);
+                }
+            });
+
+            proc->start(opencodeExe, args);
+            return;
+        }
     }
 
     if (m_provider == QStringLiteral("gemini")) {

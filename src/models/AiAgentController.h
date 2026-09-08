@@ -24,6 +24,8 @@ class AiAgentController : public QObject
     Q_PROPERTY(QString opencodeUrl READ opencodeUrl WRITE setOpencodeUrl NOTIFY keysChanged)
     Q_PROPERTY(QString model READ model WRITE setModel NOTIFY modelChanged)
     Q_PROPERTY(bool codexAvailable READ isCodexAvailable NOTIFY codexAvailableChanged)
+    Q_PROPERTY(bool antigravityAvailable READ isAntigravityAvailable NOTIFY antigravityAvailableChanged)
+    Q_PROPERTY(bool opencodeCliAvailable READ isOpencodeCliAvailable NOTIFY opencodeCliAvailableChanged)
     Q_PROPERTY(bool isBusy READ isBusy NOTIFY isBusyChanged)
     Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
     Q_PROPERTY(QVariantList chatHistory READ chatHistory NOTIFY chatHistoryChanged)
@@ -60,6 +62,12 @@ public:
     bool isCodexAvailable() const;
     Q_INVOKABLE QString codexExecutablePath() const;
 
+    bool isAntigravityAvailable() const;
+    Q_INVOKABLE QString antigravityExecutablePath() const;
+
+    bool isOpencodeCliAvailable() const;
+    Q_INVOKABLE QString opencodeExecutablePath() const;
+
     Q_INVOKABLE void sendMessage(const QString &prompt);
     Q_INVOKABLE void clearChat();
 
@@ -85,6 +93,8 @@ signals:
     void keysChanged();
     void modelChanged();
     void codexAvailableChanged();
+    void antigravityAvailableChanged();
+    void opencodeCliAvailableChanged();
     void isBusyChanged();
     void statusMessageChanged();
     void chatHistoryChanged();
