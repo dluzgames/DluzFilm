@@ -26,9 +26,18 @@
 
 namespace {
 
-void setupSilentProcess(QProcess *proc)
+void setupSilentProcess(QProcess *proc, bool redirectNullStdin = true)
 {
     proc->setProcessChannelMode(QProcess::SeparateChannels);
+    if (redirectNullStdin) {
+        proc->setStandardInputFile(QProcess::nullDevice());
+    }
+
+    auto env = QProcessEnvironment::systemEnvironment();
+    env.insert(QStringLiteral("NO_COLOR"), QStringLiteral("1"));
+    env.insert(QStringLiteral("FORCE_COLOR"), QStringLiteral("0"));
+    proc->setProcessEnvironment(env);
+
 #ifdef Q_OS_WIN
     proc->setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments *args) {
         args->flags |= CREATE_NO_WINDOW;
@@ -36,6 +45,12 @@ void setupSilentProcess(QProcess *proc)
         args->startupInfo->wShowWindow = SW_HIDE;
     });
 #endif
+}
+
+QString stripAnsi(const QString &text)
+{
+    static const QRegularExpression ansiRegex(QStringLiteral(R"(\x1B\[[0-9;]*[a-zA-Z])"));
+    return QString(text).remove(ansiRegex).trimmed();
 }
 
 QString findCodexExecutable()
@@ -320,7 +335,7 @@ void AiAgentController::sendMessage(const QString &prompt)
         }
 
         auto *proc = new QProcess(this);
-        setupSilentProcess(proc);
+        setupSilentProcess(proc, false);
 
         connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, [this, proc, tempFile](int exitCode, QProcess::ExitStatus exitStatus) {
@@ -331,14 +346,14 @@ void AiAgentController::sendMessage(const QString &prompt)
             QString replyText;
             QFile file(tempFile);
             if (file.open(QIODevice::ReadOnly)) {
-                replyText = QString::fromUtf8(file.readAll()).trimmed();
+                replyText = stripAnsi(QString::fromUtf8(file.readAll()).trimmed());
                 file.close();
                 file.remove();
             }
 
             if (replyText.isEmpty()) {
-                const QString errOut = QString::fromUtf8(proc->readAllStandardError()).trimmed();
-                const QString stdOut = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+                const QString errOut = stripAnsi(QString::fromUtf8(proc->readAllStandardError()).trimmed());
+                const QString stdOut = stripAnsi(QString::fromUtf8(proc->readAllStandardOutput()).trimmed());
                 if (!stdOut.isEmpty()) {
                     replyText = stdOut;
                 } else if (!errOut.isEmpty()) {
@@ -383,7 +398,7 @@ void AiAgentController::sendMessage(const QString &prompt)
         }
 
         auto *proc = new QProcess(this);
-        setupSilentProcess(proc);
+        setupSilentProcess(proc, true);
 
         connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, [this, proc](int exitCode, QProcess::ExitStatus exitStatus) {
@@ -391,9 +406,9 @@ void AiAgentController::sendMessage(const QString &prompt)
             proc->deleteLater();
             this->setBusy(false);
 
-            QString replyText = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+            QString replyText = stripAnsi(QString::fromUtf8(proc->readAllStandardOutput()).trimmed());
             if (replyText.isEmpty()) {
-                const QString errOut = QString::fromUtf8(proc->readAllStandardError()).trimmed();
+                const QString errOut = stripAnsi(QString::fromUtf8(proc->readAllStandardError()).trimmed());
                 if (!errOut.isEmpty()) {
                     replyText = tr("⚠️ Erro do Antigravity CLI: %1").arg(errOut);
                 } else {
@@ -421,13 +436,13 @@ void AiAgentController::sendMessage(const QString &prompt)
 
             QStringList args{
                 QStringLiteral("run"),
-                fullPrompt,
                 QStringLiteral("--format"), QStringLiteral("default"),
-                QStringLiteral("-m"), model
+                QStringLiteral("-m"), model,
+                fullPrompt
             };
 
             auto *proc = new QProcess(this);
-            setupSilentProcess(proc);
+            setupSilentProcess(proc, true);
 
             connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                     this, [this, proc](int exitCode, QProcess::ExitStatus exitStatus) {
@@ -435,7 +450,7 @@ void AiAgentController::sendMessage(const QString &prompt)
                 proc->deleteLater();
                 this->setBusy(false);
 
-                QString raw = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+                QString raw = stripAnsi(QString::fromUtf8(proc->readAllStandardOutput()).trimmed());
                 QStringList lines = raw.split(QLatin1Char('\n'));
                 QStringList cleanedLines;
                 for (const QString &line : lines) {
@@ -447,7 +462,7 @@ void AiAgentController::sendMessage(const QString &prompt)
                 QString replyText = cleanedLines.join(QLatin1Char('\n')).trimmed();
 
                 if (replyText.isEmpty()) {
-                    const QString errOut = QString::fromUtf8(proc->readAllStandardError()).trimmed();
+                    const QString errOut = stripAnsi(QString::fromUtf8(proc->readAllStandardError()).trimmed());
                     if (!errOut.isEmpty()) {
                         replyText = tr("⚠️ Erro do OpenCode CLI: %1").arg(errOut);
                     } else {
