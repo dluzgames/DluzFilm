@@ -713,6 +713,13 @@ AppController::AppController(AssetLibrary *assetLibrary, QObject *parent)
     connect(m_mcp.get(), &drift::mcp::McpServer::runningChanged, this,
             &AppController::mcpRunningChanged);
     connect(m_mcp.get(), &drift::mcp::McpServer::errorChanged, this, &AppController::mcpErrorChanged);
+
+    // Auto-start MCP server on launch if enabled (default true)
+    QTimer::singleShot(200, this, [this] {
+        const bool enabled = QSettings().value(QStringLiteral("mcp/enabled"), true).toBool();
+        if (enabled && m_mcp && !m_mcp->running())
+            m_mcp->start();
+    });
 #endif
     connect(&m_undoStack, &QUndoStack::indexChanged, this, &AppController::undoStackChanged);
     connect(&m_undoStack, &QUndoStack::indexChanged, this, [this] {
@@ -18082,7 +18089,7 @@ QString AppController::mcpAntigravitySnippet() const
         {QStringLiteral("args"), QJsonArray{QStringLiteral("--mcp-stdio")}},
     };
     const QJsonObject root{
-        {QStringLiteral("mcpServers"), QJsonObject{{QStringLiteral("drift"), server}}},
+        {QStringLiteral("mcpServers"), QJsonObject{{QStringLiteral("dluzfilm"), server}}},
     };
     return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Indented));
 }
@@ -18090,7 +18097,7 @@ QString AppController::mcpAntigravitySnippet() const
 QString AppController::mcpCodexCommand() const
 {
     const QString appPath = QDir::toNativeSeparators(QCoreApplication::applicationFilePath());
-    return QStringLiteral("codex mcp add drift -- \"%1\" --mcp-stdio").arg(appPath);
+    return QStringLiteral("codex mcp add dluzfilm -- \"%1\" --mcp-stdio").arg(appPath);
 }
 
 QString AppController::mcpClaudeCommand() const
@@ -18104,12 +18111,13 @@ QString AppController::mcpClaudeCommand() const
 
 QString AppController::mcpStdioSnippet() const
 {
+    const QString appPath = QDir::toNativeSeparators(QCoreApplication::applicationFilePath());
     const QJsonObject server{
-        {QStringLiteral("command"), QCoreApplication::applicationFilePath()},
+        {QStringLiteral("command"), appPath},
         {QStringLiteral("args"), QJsonArray{QStringLiteral("--mcp-stdio")}},
     };
     const QJsonObject root{
-        {QStringLiteral("mcpServers"), QJsonObject{{QStringLiteral("drift"), server}}},
+        {QStringLiteral("mcpServers"), QJsonObject{{QStringLiteral("dluzfilm"), server}}},
     };
     return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Indented));
 }
@@ -18117,6 +18125,7 @@ QString AppController::mcpStdioSnippet() const
 void AppController::setMcpEnabled(bool enabled)
 {
 #ifndef Q_OS_ANDROID
+    QSettings().setValue(QStringLiteral("mcp/enabled"), enabled);
     if (!m_mcp)
         return;
     if (enabled)

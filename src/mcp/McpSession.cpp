@@ -16,17 +16,32 @@ QString defaultSessionDir()
     QString base = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
     if (base.isEmpty())
         base = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-    return QDir(base).filePath(QStringLiteral("drift"));
+    return QDir(base).filePath(QStringLiteral("dluzfilm"));
 }
 
 } // namespace
 
 QString sessionFilePath()
 {
-    const QString override = qEnvironmentVariable("DRIFT_MCP_SESSION_PATH");
+    const QString override = qEnvironmentVariable("DLUZFILM_MCP_SESSION_PATH");
     if (!override.isEmpty())
         return override;
-    return QDir(defaultSessionDir()).filePath(QStringLiteral("mcp-session.json"));
+    const QString driftOverride = qEnvironmentVariable("DRIFT_MCP_SESSION_PATH");
+    if (!driftOverride.isEmpty())
+        return driftOverride;
+
+    const QString primary = QDir(defaultSessionDir()).filePath(QStringLiteral("mcp-session.json"));
+    if (QFile::exists(primary))
+        return primary;
+
+    QString base = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+    if (base.isEmpty())
+        base = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    const QString legacy = QDir(base).filePath(QStringLiteral("drift/mcp-session.json"));
+    if (QFile::exists(legacy))
+        return legacy;
+
+    return primary;
 }
 
 bool writeSessionFile(quint16 port, const QString &token)
@@ -49,12 +64,32 @@ bool writeSessionFile(quint16 port, const QString &token)
     file.write(QJsonDocument(body).toJson(QJsonDocument::Compact));
     file.write("\n");
     file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+
+    // Also mirror to legacy drift path for backward compatibility with older tools
+    QString base = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+    if (base.isEmpty())
+        base = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    const QString legacyPath = QDir(base).filePath(QStringLiteral("drift/mcp-session.json"));
+    if (legacyPath != path) {
+        QDir().mkpath(QFileInfo(legacyPath).absolutePath());
+        QFile legacyFile(legacyPath);
+        if (legacyFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            legacyFile.write(QJsonDocument(body).toJson(QJsonDocument::Compact));
+            legacyFile.write("\n");
+            legacyFile.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+        }
+    }
+
     return true;
 }
 
 void removeSessionFile()
 {
     QFile::remove(sessionFilePath());
+    QString base = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+    if (base.isEmpty())
+        base = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    QFile::remove(QDir(base).filePath(QStringLiteral("drift/mcp-session.json")));
 }
 
 bool readSessionFile(quint16 *port, QString *token, QString *error)
@@ -63,19 +98,19 @@ bool readSessionFile(quint16 *port, QString *token, QString *error)
     if (!file.exists()) {
         if (error) {
             *error = QStringLiteral(
-                "Drift MCP is off. Open Drift and enable Agent access in Settings.");
+                "Dluz Film MCP is off. Open Dluz Film and enable Agent access in Settings.");
         }
         return false;
     }
     if (!file.open(QIODevice::ReadOnly)) {
         if (error)
-            *error = QStringLiteral("Could not read the Drift MCP session file.");
+            *error = QStringLiteral("Could not read the Dluz Film MCP session file.");
         return false;
     }
     const auto doc = QJsonDocument::fromJson(file.readAll());
     if (!doc.isObject()) {
         if (error)
-            *error = QStringLiteral("Drift MCP session file is invalid.");
+            *error = QStringLiteral("Dluz Film MCP session file is invalid.");
         return false;
     }
     const QJsonObject o = doc.object();
@@ -83,7 +118,7 @@ bool readSessionFile(quint16 *port, QString *token, QString *error)
     const QString t = o.value(QStringLiteral("token")).toString();
     if (p <= 0 || p > 65535 || t.isEmpty()) {
         if (error)
-            *error = QStringLiteral("Drift MCP session file is incomplete.");
+            *error = QStringLiteral("Dluz Film MCP session file is incomplete.");
         return false;
     }
     if (port)

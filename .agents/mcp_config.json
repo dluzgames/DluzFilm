@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "dluzfilm": {
+      "command": "D:/DluzEditorBuild2/Release/Dluz Film.exe",
+      "args": [
+        "--mcp-stdio"
+      ]
+    },
+    "drift": {
+      "command": "D:/DluzEditorBuild2/Release/Dluz Film.exe",
+      "args": [
+        "--mcp-stdio"
+      ]
+    }
+  }
+}
