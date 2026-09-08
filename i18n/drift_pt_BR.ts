@@ -4370,7 +4370,7 @@
     <name>EffectStacksSection</name>
     <message>
         <source>Drift effect stack (*.drifteffects)</source>
-        <translation>Pilha de efeitos do Drift (*.drifteffects)</translation>
+        <translation>Pilha de efeitos do Dluz Film (*.drifteffects)</translation>
     </message>
     <message>
         <source>Import effect stack</source>
@@ -6219,11 +6219,11 @@ Se a reprodução travar, experimente outro.</translation>
     <name>Project</name>
     <message>
         <source>This project was saved by a newer version of Drift (project format %1; this build reads up to %2).</source>
-        <translation>Este projeto foi salvo por uma versão mais recente do Drift (formato de projeto %1; esta versão lê até %2).</translation>
+        <translation>Este projeto foi salvo por uma versão mais recente do Dluz Film (formato de projeto %1; esta versão lê até %2).</translation>
     </message>
     <message>
         <source>This file isn’t a Drift project.</source>
-        <translation>Este arquivo não é um projeto do Drift.</translation>
+        <translation>Este arquivo não é um projeto do Dluz Film.</translation>
     </message>
 </context>
 <context>
@@ -6238,11 +6238,11 @@ Se a reprodução travar, experimente outro.</translation>
     </message>
     <message>
         <source>file is too short to be a Drift project</source>
-        <translation>o arquivo é curto demais para ser um projeto do Drift</translation>
+        <translation>o arquivo é curto demais para ser um projeto do Dluz Film</translation>
     </message>
     <message>
         <source>not a Drift project (bad magic)</source>
-        <translation>não é um projeto do Drift (assinatura inválida)</translation>
+        <translation>não é um projeto do Dluz Film (assinatura inválida)</translation>
     </message>
     <message>
         <source>unsupported container revision</source>
@@ -6270,7 +6270,7 @@ Se a reprodução travar, experimente outro.</translation>
     </message>
     <message>
         <source>this project was saved by a newer version of Drift (format %1) — update to open it</source>
-        <translation>este projeto foi salvo por uma versão mais recente do Drift (formato %1) — atualize para abri-lo</translation>
+        <translation>este projeto foi salvo por uma versão mais recente do Dluz Film (formato %1) — atualize para abri-lo</translation>
     </message>
     <message>
         <source>project blob table is not contiguous</source>
@@ -6756,7 +6756,7 @@ Se a reprodução travar, experimente outro.</translation>
     </message>
     <message>
         <source>Drift will render a reversed copy of this clip so it plays back smoothly. You can keep editing while it runs.</source>
-        <translation>O Drift vai renderizar uma cópia invertida deste clipe para que a reprodução fique fluida. Você pode continuar editando enquanto isso.</translation>
+        <translation>O Dluz Film vai renderizar uma cópia invertida deste clipe para que a reprodução fique fluida. Você pode continuar editando enquanto isso.</translation>
     </message>
     <message>
         <source>This can take a few minutes on longer clips.</source>
@@ -7793,8 +7793,8 @@ Se a reprodução travar, experimente outro.</translation>
         <translation>Suaviza o tremor da câmera gravando quadros-chave de posição. Panorâmicas lineares ficam como dois quadros-chave bem espaçados; só as mudanças de direção recebem quadros-chave extras. Alterar a suavização ou o modo tripé não atualiza a pré-visualização até você aplicar.</translation>
     </message>
     <message>
-        <source>Smooths camera shake. Drift scans the clip once, then renders a new video. Changing smoothness or tripod does not update the preview until you apply.</source>
-        <translation>Suaviza o tremor da câmera. O Drift analisa o clipe uma vez e depois renderiza um novo vídeo. Alterar a suavização ou o modo tripé não atualiza a pré-visualização até você aplicar.</translation>
+        <source>Smooths camera shake. Dluz Film scans the clip once, then renders a new video. Changing smoothness or tripod does not update the preview until you apply.</source>
+        <translation>Suaviza o tremor da câmera. O Dluz Film analisa o clipe uma vez e depois renderiza um novo vídeo. Alterar a suavização ou o modo tripé não atualiza a pré-visualização até você aplicar.</translation>
     </message>
     <message>
         <source>Mode</source>
@@ -8130,7 +8130,7 @@ Se a reprodução travar, experimente outro.</translation>
     <name>TextAssetsTab</name>
     <message>
         <source>Drift text style (*.drifttextstyle)</source>
-        <translation>Estilo de texto do Drift (*.drifttextstyle)</translation>
+        <translation>Estilo de texto do Dluz Film (*.drifttextstyle)</translation>
     </message>
     <message>
         <source>Import text style</source>
@@ -9401,7 +9401,7 @@ Se a reprodução travar, experimente outro.</translation>
     </message>
     <message>
         <source>Drift %1 is the latest version.</source>
-        <translation>O Drift %1 é a versão mais recente.</translation>
+        <translation>O Dluz Film %1 é a versão mais recente.</translation>
     </message>
     <message>
         <source>Dluz Film %1 is available.</source>

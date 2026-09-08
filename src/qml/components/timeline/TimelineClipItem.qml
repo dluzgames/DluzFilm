@@ -504,7 +504,9 @@ Item {
                      || clipItem.trackType === "shape"
             width: parent.width
             height: clipItem.headerBandHeight
-            color: Theme.scrimColor
+            color: clipItem.trackType === "video"
+                   ? (clipMouse.containsMouse || clipItem.lifted ? Qt.lighter(Theme.clipVideo, 1.15) : Theme.clipVideo)
+                   : Theme.scrimColor
             z: 1
 
             // Just the name. The effect stack used to be listed on a second line here, but it
@@ -520,6 +522,7 @@ Item {
                 color: Theme.onMedia
                 font.pixelSize: Theme.fontSizeTiny
                 font.family: Theme.fontFamily
+                font.weight: Font.Medium
                 elide: Text.ElideRight
             }
         }

@@ -126,12 +126,14 @@ bool McpServer::start()
     if (!ok) {
         if (m_error.isEmpty())
             m_error = QStringLiteral("Could not bind 127.0.0.1");
+        qWarning("McpServer::start failed: ok=false, error=%s", qPrintable(m_error));
         emit errorChanged();
         stop();
         return false;
     }
     m_port = port;
     m_wroteSessionFile = writeSessionFile(port, m_token);
+    qWarning("McpServer::start succeeded! port=%d, sessionFile=%d", port, m_wroteSessionFile);
     m_running = true;
     emit runningChanged();
     return true;

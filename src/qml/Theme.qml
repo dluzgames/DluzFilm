@@ -145,10 +145,10 @@ QtObject {
         border: "#292929",
         accent: "#242424",
         accentForeground: "#f2f2f2",
-        mutedForeground: "#808080",
+        mutedForeground: "#b8b8b8",
         popoverHover: "#212121",
         panelBackground: "#1a1a1a",
-        panelForeground: "#d9d9d9",
+        panelForeground: "#f0f0f0",
         panelBorder: "#2e2e2e",
         panelAccent: "#262626",
         panelAccentForeground: "#ededed",
@@ -246,6 +246,7 @@ QtObject {
     readonly property color skeletonHighlight: darkMode ? "#333333" : "#f5f5f5"
 
     // --- Colors: timeline clip types (fixed regardless of app theme) ---------------
+    readonly property color clipVideo: "#16a34a"
     readonly property color clipText: "#5DBAA0"
     readonly property color clipSubtitle: "#4A9FD4"
     readonly property color clipAudio: "#8F5DBA"

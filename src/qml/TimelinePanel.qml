@@ -417,12 +417,13 @@ PanelFrame {
         return Theme.clipAdjustmentVideo
     }
     function clipColor(type) {
+        if (type === "video") return Theme.clipVideo;
         if (type === "text") return Theme.clipText;
         if (type === "subtitle") return Theme.clipSubtitle;
         if (type === "audio") return Theme.clipAudio;
         if (type === "graphic") return Theme.clipGraphic;
         if (type === "effect" || type === "adjustment") return Theme.clipEffect;
-        return Theme.clipVideoPlaceholder; // video: no flat fill, thumbnails would go here
+        return Theme.clipVideoPlaceholder; // video fallback
     }
 
     function totalTracksHeight() {

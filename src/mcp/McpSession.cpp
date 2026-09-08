@@ -36,6 +36,7 @@ QString sessionFilePath()
 bool writeSessionFile(quint16 port, const QString &token)
 {
     const QString path = sessionFilePath();
+    qWarning("writeSessionFile path: %s", qPrintable(path));
     const QString dir = QFileInfo(path).absolutePath();
     if (!QDir().mkpath(dir))
         return false;

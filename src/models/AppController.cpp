@@ -714,12 +714,6 @@ AppController::AppController(AssetLibrary *assetLibrary, QObject *parent)
             &AppController::mcpRunningChanged);
     connect(m_mcp.get(), &drift::mcp::McpServer::errorChanged, this, &AppController::mcpErrorChanged);
 
-    // Auto-start MCP server on launch if enabled (default true)
-    QTimer::singleShot(200, this, [this] {
-        const bool enabled = QSettings().value(QStringLiteral("mcp/enabled"), true).toBool();
-        if (enabled && m_mcp && !m_mcp->running())
-            m_mcp->start();
-    });
 #endif
     connect(&m_undoStack, &QUndoStack::indexChanged, this, &AppController::undoStackChanged);
     connect(&m_undoStack, &QUndoStack::indexChanged, this, [this] {
@@ -18124,14 +18118,19 @@ QString AppController::mcpStdioSnippet() const
 
 void AppController::setMcpEnabled(bool enabled)
 {
+    qWarning("AppController::setMcpEnabled called with enabled=%d", enabled);
 #ifndef Q_OS_ANDROID
     QSettings().setValue(QStringLiteral("mcp/enabled"), enabled);
-    if (!m_mcp)
+    if (!m_mcp) {
+        qWarning("AppController::setMcpEnabled: m_mcp is null!");
         return;
-    if (enabled)
-        m_mcp->start();
-    else
+    }
+    if (enabled) {
+        const bool res = m_mcp->start();
+        qWarning("AppController::setMcpEnabled: m_mcp->start() returned %d", res);
+    } else {
         m_mcp->stop();
+    }
 #else
     Q_UNUSED(enabled);
 #endif

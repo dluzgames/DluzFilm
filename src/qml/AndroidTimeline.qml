@@ -850,6 +850,7 @@ Item {
         return Theme.clipAdjustmentVideo
     }
     function clipColor(type) {
+        if (type === "video") return Theme.clipVideo
         if (type === "text") return Theme.clipText
         if (type === "subtitle") return Theme.clipSubtitle
         if (type === "audio") return Theme.clipAudio

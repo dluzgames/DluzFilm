@@ -495,14 +495,8 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_ANDROID
     engine.loadFromModule("Drift", "AndroidMain");
 #else
-    QObject::connect(
-        &engine, &QQmlApplicationEngine::objectCreated, &editorState,
-        [&editorState](QObject *obj, const QUrl &) {
-            if (obj)
-                editorState.setMcpEnabled(true);
-        },
-        Qt::QueuedConnection);
     engine.loadFromModule("Drift", "Main");
+    editorState.setMcpEnabled(true);
 #endif
 
     return app.exec();
