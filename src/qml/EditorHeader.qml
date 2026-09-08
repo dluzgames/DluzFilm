@@ -625,7 +625,7 @@ Rectangle {
                 variant: "ghost"
                 text: qsTr("Agente IA")
                 active: aiAgentDialog.visible
-                tooltip: qsTr("Agente IA Interno (Gemini, OpenRouter, Groq, OpenCode)")
+                tooltip: qsTr("Agente IA Interno (Codex CLI, Gemini, OpenRouter, Groq, OpenCode)")
                 anchors.verticalCenter: parent.verticalCenter
                 onClicked: aiAgentDialog.openDialog()
             }

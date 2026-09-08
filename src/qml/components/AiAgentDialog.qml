@@ -60,9 +60,9 @@ ThemedDialog {
                 }
 
                 ThemedLabel {
-                    text: AiAgent.provider.toUpperCase()
+                    text: AiAgent.provider === "codex" ? "CODEX CLI (LOCAL)" : AiAgent.provider.toUpperCase()
                     size: "xs"
-                    color: Theme.primary
+                    color: AiAgent.provider === "codex" ? Theme.constructive : Theme.primary
                     font.weight: Font.Bold
                 }
 
@@ -164,6 +164,15 @@ ThemedDialog {
                 spacing: Theme.spacingXs
 
                 ThemedButton {
+                    text: qsTr("💻 Codex CLI")
+                    variant: AiAgent.provider === "codex" ? "primary" : "secondary"
+                    onClicked: {
+                        AiAgent.provider = "codex"
+                        promptInput.text = "Crie uma vinheta animada com meu canal Dluz Games"
+                    }
+                }
+
+                ThemedButton {
                     text: qsTr("🎬 Criar Lower Third")
                     variant: "secondary"
                     onClicked: promptInput.text = "Crie uma vinheta lower third estilizada com meu nome DLuz Games"
@@ -176,7 +185,7 @@ ThemedDialog {
                 }
 
                 ThemedButton {
-                    text: qsTr("🎙️ Voz Clonada DLuz")
+                    text: qsTr("🎙️ Voz DLuz")
                     variant: "secondary"
                     onClicked: promptInput.text = "Gere uma locução de abertura usando o bordão oficial da DLuz Games"
                 }
@@ -231,36 +240,105 @@ ThemedDialog {
                     font.weight: Font.Medium
                 }
 
-                RowLayout {
+                Flow {
                     width: parent.width
                     spacing: Theme.spacingSm
 
                     ThemedButton {
-                        text: "Google Gemini"
-                        variant: AiAgent.provider === "gemini" ? "primary" : "secondary"
-                        Layout.fillWidth: true
-                        onClicked: AiAgent.provider = "gemini"
+                        text: "OpenAI Codex CLI" + (AiAgent.codexAvailable ? " ✨" : "")
+                        variant: AiAgent.provider === "codex" ? "primary" : "secondary"
+                        onClicked: AiAgent.provider = "codex"
                     }
 
                     ThemedButton {
-                        text: "OpenRouter"
-                        variant: AiAgent.provider === "openrouter" ? "primary" : "secondary"
-                        Layout.fillWidth: true
-                        onClicked: AiAgent.provider = "openrouter"
+                        text: "Google Gemini"
+                        variant: AiAgent.provider === "gemini" ? "primary" : "secondary"
+                        onClicked: AiAgent.provider = "gemini"
                     }
 
                     ThemedButton {
                         text: "Groq"
                         variant: AiAgent.provider === "groq" ? "primary" : "secondary"
-                        Layout.fillWidth: true
                         onClicked: AiAgent.provider = "groq"
+                    }
+
+                    ThemedButton {
+                        text: "OpenRouter"
+                        variant: AiAgent.provider === "openrouter" ? "primary" : "secondary"
+                        onClicked: AiAgent.provider = "openrouter"
                     }
 
                     ThemedButton {
                         text: "OpenCode"
                         variant: AiAgent.provider === "opencode" ? "primary" : "secondary"
-                        Layout.fillWidth: true
                         onClicked: AiAgent.provider = "opencode"
+                    }
+                }
+            }
+
+            // Codex CLI Card
+            Column {
+                width: parent.width
+                spacing: Theme.spacingSm
+                visible: AiAgent.provider === "codex"
+
+                Rectangle {
+                    width: parent.width
+                    height: codexCardCol.implicitHeight + Theme.spacingMd * 2
+                    radius: Theme.radiusSm
+                    color: AiAgent.codexAvailable ? Qt.rgba(0.08, 0.64, 0.29, 0.12) : Qt.rgba(0.8, 0.2, 0.2, 0.12)
+                    border.width: Theme.borderWidth
+                    border.color: AiAgent.codexAvailable ? Theme.constructive : Theme.destructive
+
+                    Column {
+                        id: codexCardCol
+                        anchors.fill: parent
+                        anchors.margins: Theme.spacingMd
+                        spacing: Theme.spacingXs
+
+                        RowLayout {
+                            width: parent.width
+                            spacing: Theme.spacingSm
+
+                            IconGlyph {
+                                glyph: AiAgent.codexAvailable ? Theme.icons.check : Theme.icons.alertTriangle
+                                iconSize: Theme.iconSizeMd
+                                iconColor: AiAgent.codexAvailable ? Theme.constructive : Theme.destructive
+                            }
+
+                            ThemedLabel {
+                                text: AiAgent.codexAvailable ? qsTr("OpenAI Codex CLI Conectado") : qsTr("Codex CLI Não Localizado")
+                                size: "sm"
+                                font.weight: Font.Bold
+                                color: AiAgent.codexAvailable ? Theme.constructive : Theme.destructive
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            ThemedLabel {
+                                text: qsTr("Autenticação Local Ativa")
+                                size: "xs"
+                                color: Theme.mutedForeground
+                            }
+                        }
+
+                        ThemedLabel {
+                            width: parent.width
+                            text: AiAgent.codexAvailable
+                                  ? qsTr("Executável: ") + AiAgent.codexExecutablePath()
+                                  : qsTr("Instale o OpenAI Codex ou verifique se está no PATH do Windows.")
+                            size: "xs"
+                            color: Theme.mutedForeground
+                            wrapMode: Text.WrapAnywhere
+                        }
+
+                        ThemedLabel {
+                            width: parent.width
+                            text: qsTr("O Codex CLI executa localmente no seu PC através da CLI oficial da OpenAI, sem necessidade de inserir chaves API manuais.")
+                            size: "xs"
+                            color: Theme.foreground
+                            wrapMode: Text.WordWrap
+                        }
                     }
                 }
             }

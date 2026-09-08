@@ -1,4 +1,4 @@
-﻿#include "AiAgentController.h"
+#include "AiAgentController.h"
 #include "AppController.h"
 
 #include <QSettings>
@@ -38,7 +38,34 @@ void setupSilentProcess(QProcess *proc)
 #endif
 }
 
+QString findCodexExecutable()
+{
+    QString exe = QStandardPaths::findExecutable(QStringLiteral("codex"));
+    if (!exe.isEmpty() && QFile::exists(exe))
+        return exe;
+
+    QString localPath = QDir::homePath() + QStringLiteral("/AppData/Local/Programs/OpenAI/Codex/bin/codex.exe");
+    if (QFile::exists(localPath))
+        return localPath;
+
+    QString defaultPath = QStringLiteral("C:/Users/dluzgg/AppData/Local/Programs/OpenAI/Codex/bin/codex.exe");
+    if (QFile::exists(defaultPath))
+        return defaultPath;
+
+    return QString();
+}
+
 } // namespace
+
+bool AiAgentController::isCodexAvailable() const
+{
+    return !findCodexExecutable().isEmpty();
+}
+
+QString AiAgentController::codexExecutablePath() const
+{
+    return findCodexExecutable();
+}
 
 AiAgentController::AiAgentController(AppController *controller, QObject *parent)
     : QObject(parent)
@@ -48,7 +75,7 @@ AiAgentController::AiAgentController(AppController *controller, QObject *parent)
 
     // Default welcome message
     appendChatMessage(QStringLiteral("assistant"),
-                      tr("Olá! Sou o seu Agente IA interno do Dluz Film. Posso ajudar você a criar vinhetas e lower-thirds animados com HyperFrames, remover silêncios automaticamente, clonar voz com OmniVoice e gerar cenas com OmniFlash. Como posso ajudar agora?"));
+                      tr("Olá! Sou o seu Agente IA interno do Dluz Film (com suporte nativo a Codex CLI, Gemini, OpenRouter, Groq e OpenCode). Posso ajudar você a criar vinhetas e lower-thirds animados com HyperFrames, remover silêncios automaticamente, clonar voz com OmniVoice e gerar cenas com OmniFlash. Como posso ajudar agora?"));
 }
 
 AiAgentController::~AiAgentController()
@@ -62,7 +89,8 @@ AiAgentController::~AiAgentController()
 void AiAgentController::loadSettings()
 {
     QSettings s(QStringLiteral("Dluz Film"), QStringLiteral("Dluz Film"));
-    m_provider = s.value(QStringLiteral("ai/provider"), QStringLiteral("gemini")).toString();
+    const QString defProvider = isCodexAvailable() ? QStringLiteral("codex") : QStringLiteral("gemini");
+    m_provider = s.value(QStringLiteral("ai/provider"), defProvider).toString();
     m_geminiKey = s.value(QStringLiteral("ai/gemini_key")).toString();
     m_openrouterKey = s.value(QStringLiteral("ai/openrouter_key")).toString();
     m_groqKey = s.value(QStringLiteral("ai/groq_key")).toString();
@@ -196,6 +224,76 @@ void AiAgentController::sendMessage(const QString &prompt)
     setBusy(true, tr("Consultando IA (%1)...").arg(m_provider));
 
     const QString sysPrompt = buildSystemPrompt();
+
+    if (m_provider == QStringLiteral("codex")) {
+        const QString codexExe = findCodexExecutable();
+        if (codexExe.isEmpty() || !QFile::exists(codexExe)) {
+            setBusy(false);
+            appendChatMessage(QStringLiteral("assistant"),
+                              tr("⚠️ Executável do Codex CLI não foi encontrado no sistema (OpenAI Codex). Verifique se está instalado em seu computador."));
+            return;
+        }
+
+        const QString tempFile = QDir::tempPath() + QStringLiteral("/codex_reply_")
+                               + QUuid::createUuid().toString(QUuid::WithoutBraces)
+                               + QStringLiteral(".txt");
+
+        const QString fullPrompt = sysPrompt + QStringLiteral("\n\nInstrução do Usuário no Dluz Film:\n") + prompt;
+
+        QStringList args{
+            QStringLiteral("exec"),
+            QStringLiteral("-"),
+            QStringLiteral("-o"), tempFile,
+            QStringLiteral("-s"), QStringLiteral("read-only"),
+            QStringLiteral("--skip-git-repo-check"),
+            QStringLiteral("--ephemeral"),
+            QStringLiteral("--color"), QStringLiteral("never")
+        };
+
+        if (!m_model.trimmed().isEmpty()) {
+            args << QStringLiteral("-m") << m_model.trimmed();
+        }
+
+        auto *proc = new QProcess(this);
+        setupSilentProcess(proc);
+
+        connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, proc, tempFile](int exitCode, QProcess::ExitStatus exitStatus) {
+            Q_UNUSED(exitStatus);
+            proc->deleteLater();
+            this->setBusy(false);
+
+            QString replyText;
+            QFile file(tempFile);
+            if (file.open(QIODevice::ReadOnly)) {
+                replyText = QString::fromUtf8(file.readAll()).trimmed();
+                file.close();
+                file.remove();
+            }
+
+            if (replyText.isEmpty()) {
+                const QString errOut = QString::fromUtf8(proc->readAllStandardError()).trimmed();
+                const QString stdOut = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+                if (!stdOut.isEmpty()) {
+                    replyText = stdOut;
+                } else if (!errOut.isEmpty()) {
+                    replyText = tr("⚠️ Erro do Codex CLI: %1").arg(errOut);
+                } else {
+                    replyText = tr("⚠️ Codex CLI finalizou com código %1 sem resposta.").arg(exitCode);
+                }
+            }
+
+            if (!replyText.isEmpty()) {
+                this->appendChatMessage(QStringLiteral("assistant"), replyText);
+                this->executeActionFromResponse(replyText);
+            }
+        });
+
+        proc->start(codexExe, args);
+        proc->write(fullPrompt.toUtf8());
+        proc->closeWriteChannel();
+        return;
+    }
 
     if (m_provider == QStringLiteral("gemini")) {
         if (m_geminiKey.trimmed().isEmpty()) {
