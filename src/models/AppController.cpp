@@ -713,7 +713,6 @@ AppController::AppController(AssetLibrary *assetLibrary, QObject *parent)
     connect(m_mcp.get(), &drift::mcp::McpServer::runningChanged, this,
             &AppController::mcpRunningChanged);
     connect(m_mcp.get(), &drift::mcp::McpServer::errorChanged, this, &AppController::mcpErrorChanged);
-
 #endif
     connect(&m_undoStack, &QUndoStack::indexChanged, this, &AppController::undoStackChanged);
     connect(&m_undoStack, &QUndoStack::indexChanged, this, [this] {
@@ -18126,9 +18125,13 @@ void AppController::setMcpEnabled(bool enabled)
         return;
     }
     if (enabled) {
+        if (m_mcp->running())
+            return;
         const bool res = m_mcp->start();
         qWarning("AppController::setMcpEnabled: m_mcp->start() returned %d", res);
     } else {
+        if (!m_mcp->running())
+            return;
         m_mcp->stop();
     }
 #else

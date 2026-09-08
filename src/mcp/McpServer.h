@@ -60,6 +60,7 @@ private:
     // stop() must not delete a session file this server never wrote: a headless instance
     // serving only stdio would otherwise unregister a GUI editor running alongside it.
     bool m_wroteSessionFile = false;
+    bool m_starting = false;
     bool m_running = false;
 };
 

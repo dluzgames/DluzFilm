@@ -72,9 +72,10 @@ QString McpServer::makeToken() const
 
 bool McpServer::start()
 {
-    if (m_running)
+    if (m_running || m_starting)
         return true;
 
+    m_starting = true;
     m_error.clear();
     m_token = m_fixedToken.isEmpty() ? makeToken() : m_fixedToken;
 
@@ -124,6 +125,7 @@ bool McpServer::start()
     QObject::disconnect(failedConn);
 
     if (!ok) {
+        m_starting = false;
         if (m_error.isEmpty())
             m_error = QStringLiteral("Could not bind 127.0.0.1");
         qWarning("McpServer::start failed: ok=false, error=%s", qPrintable(m_error));
@@ -131,6 +133,7 @@ bool McpServer::start()
         stop();
         return false;
     }
+    m_starting = false;
     m_port = port;
     m_wroteSessionFile = writeSessionFile(port, m_token);
     qWarning("McpServer::start succeeded! port=%d, sessionFile=%d", port, m_wroteSessionFile);
@@ -141,6 +144,7 @@ bool McpServer::start()
 
 void McpServer::stop()
 {
+    m_starting = false;
     if (m_wroteSessionFile) {
         removeSessionFile();
         m_wroteSessionFile = false;
