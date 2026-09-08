@@ -705,7 +705,7 @@ QStringList selectionBasedOps()
 QString agentGuideText()
 {
     return QStringLiteral(
-        "Drift MCP agent guide\n"
+        "Dluz Film MCP agent guide\n"
         "\n"
         "Workflow:\n"
         "1. Call catalog on POST /mcp (homepage).\n"
@@ -994,9 +994,9 @@ QString homepageHtml()
 {
     const QJsonObject cat = catalogPayload();
     QString body = QStringLiteral(
-        "<!doctype html><meta charset=utf-8><title>Drift MCP</title>"
+        "<!doctype html><meta charset=utf-8><title>Dluz Film MCP</title>"
         "<body style='font:14px/1.45 system-ui;max-width:42rem;margin:2rem auto;padding:0 1rem'>"
-        "<h1>Drift agent access</h1>"
+        "<h1>Dluz Film agent access</h1>"
         "<p>This editor is exposing an MCP server on localhost. Any local process with the "
         "session token can edit the open project and capture frames.</p>"
         "<p><strong>Workflow:</strong> %1</p>"
