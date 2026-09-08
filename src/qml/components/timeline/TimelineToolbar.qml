@@ -81,6 +81,12 @@ Item {
             active: toolbar.panel.timelineTool === "split"
             onClicked: toolbar.panel.timelineTool = toolbar.panel.timelineTool === "split" ? "" : "split"
         }
+        IconButton {
+            glyph: Theme.icons.wand
+            variant: "text"
+            tooltip: qsTr("Removedor de Silêncios — detectar e cortar pausas automaticamente")
+            onClicked: silenceRemoverDialog.openDialog()
+        }
 
         // A/V actions belong beside the primary clip tools rather than at the end
         // of the toolbar. On narrower desktop windows the old placement was clipped,
@@ -437,5 +443,9 @@ Item {
             tooltip: qsTr("Fit timeline in view")
             onClicked: toolbar.panel.fitZoom()
         }
+    }
+
+    SilenceRemoverDialog {
+        id: silenceRemoverDialog
     }
 }

@@ -13,6 +13,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 option(WITH_BGREMOVAL "Enable OpenCV-based background removal" OFF)
@@ -581,6 +585,8 @@ qt_add_executable(drift
     src/models/UpdateChecker.cpp
     src/models/AppController.h
     src/models/AppController.cpp
+    src/models/AiAgentController.h
+    src/models/AiAgentController.cpp
     src/models/EditorState.h
     src/models/LayoutStore.h
     src/models/LayoutStore.cpp
@@ -814,6 +820,10 @@ qt_add_qml_module(drift
         src/qml/components/LayoutChooserDialog.qml
         src/qml/components/LanguageChooserDialog.qml
         src/qml/components/AgentAccessDialog.qml
+        src/qml/components/SilenceRemoverDialog.qml
+        src/qml/components/HyperframesStudioDialog.qml
+        src/qml/components/OmniStudioDialog.qml
+        src/qml/components/AiAgentDialog.qml
         src/qml/components/VideoSizeDialog.qml
         src/qml/components/VideoSizeControls.qml
         src/qml/components/ProjectPropertiesDialog.qml

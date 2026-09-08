@@ -5115,6 +5115,43 @@ void AppController::splitClipRightAt(int trackIndex, int clipIndex, double secon
     selectClip(trackIndex, clipIndex);
 }
 
+QJsonObject AppController::detectSilence(int trackIndex, int clipIndex, double threshold, double minDuration, double padding)
+{
+    return mcpDetectSilence(trackIndex, clipIndex, 0.0, 0.0, threshold, minDuration, padding);
+}
+
+QJsonObject AppController::removeSilence(int trackIndex, int clipIndex, double threshold, double minDuration, double padding)
+{
+    return mcpRemoveSilence(trackIndex, clipIndex, threshold, minDuration, padding);
+}
+
+bool AppController::importMediaToTimeline(const QString &filePath, double atSeconds, int targetTrack)
+{
+    if (!m_assetLibrary || filePath.isEmpty())
+        return false;
+
+    const QFileInfo fi(filePath);
+    if (!fi.exists())
+        return false;
+
+    const QString cleanPath = fi.canonicalFilePath().isEmpty() ? fi.absoluteFilePath() : fi.canonicalFilePath();
+    const QStringList ids = m_assetLibrary->importLocalPaths({cleanPath});
+    if (ids.isEmpty())
+        return false;
+
+    const int assetIdx = m_assetLibrary->indexOfId(ids.first());
+    if (assetIdx < 0)
+        return false;
+
+    const double pos = atSeconds >= 0.0 ? atSeconds : playheadSeconds();
+    if (targetTrack >= 0 && targetTrack < m_project.tracks().size()) {
+        addClipFromAssetAt(assetIdx, targetTrack, pos);
+    } else {
+        addClipFromAsset(assetIdx);
+    }
+    return true;
+}
+
 void AppController::trimClipLeft(int trackIndex, int clipIndex, double newStart)
 {
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())

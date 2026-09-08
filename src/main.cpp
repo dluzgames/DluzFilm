@@ -6,8 +6,11 @@
 #ifndef Q_OS_ANDROID
 #include "HeadlessApp.h"
 #include "mcp/McpStdio.h"
+#include "mcp/McpSession.h"
+#include <QTcpSocket>
 #endif
 #include "models/AddonManager.h"
+#include "models/AiAgentController.h"
 #include "models/AppController.h"
 #include "models/AssetLibrary.h"
 #include "models/EditorState.h"
@@ -333,10 +336,22 @@ int main(int argc, char *argv[])
     }
     for (int i = 1; i < argc; ++i) {
         if (qstrcmp(argv[i], "--mcp-stdio") == 0) {
-            QCoreApplication app(argc, argv);
-            QCoreApplication::setApplicationName("Dluz Film");
-            QCoreApplication::setOrganizationName("Dluz Film");
-            return drift::mcp::runStdioAttach();
+            quint16 port = 0;
+            QString token;
+            QString error;
+            if (drift::mcp::readSessionFile(&port, &token, &error)) {
+                QTcpSocket testSock;
+                testSock.connectToHost(QStringLiteral("127.0.0.1"), port);
+                if (testSock.waitForConnected(500)) {
+                    testSock.disconnectFromHost();
+                    QCoreApplication app(argc, argv);
+                    QCoreApplication::setApplicationName("Dluz Film");
+                    QCoreApplication::setOrganizationName("Dluz Film");
+                    return drift::mcp::runStdioAttach();
+                }
+            }
+            // If GUI editor is not currently running or not listening, serve directly in headless mode!
+            return drift::runHeadless(argc, argv);
         }
     }
 #endif
@@ -465,11 +480,13 @@ int main(int argc, char *argv[])
     static UpdateChecker updateChecker;
     static LayoutStore layoutStore;
     static drift::Haptics haptics;
+    static AiAgentController aiAgent(&editorState);
     editorState.setAddonManager(&addonManager);
     qmlRegisterSingletonInstance("Drift", 1, 0, "AssetLibrary", &assetLibrary);
     qmlRegisterSingletonInstance("Drift", 1, 0, "BinFolderModel", editorState.binFolderModel());
     qmlRegisterSingletonInstance("Drift", 1, 0, "EditorState", &editorState);
     qmlRegisterSingletonInstance("Drift", 1, 0, "AppController", &editorState);
+    qmlRegisterSingletonInstance("Drift", 1, 0, "AiAgent", &aiAgent);
     qmlRegisterSingletonInstance("Drift", 1, 0, "FileDialogs", &fileDialogs);
     qmlRegisterSingletonInstance("Drift", 1, 0, "Addons", &addonManager);
     qmlRegisterSingletonInstance("Drift", 1, 0, "Updates", &updateChecker);

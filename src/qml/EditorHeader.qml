@@ -168,6 +168,18 @@ Rectangle {
         id: agentAccessDialog
     }
 
+    AiAgentDialog {
+        id: aiAgentDialog
+    }
+
+    HyperframesStudioDialog {
+        id: hyperframesStudioDialog
+    }
+
+    OmniStudioDialog {
+        id: omniStudioDialog
+    }
+
     VideoSizeDialog {
         id: videoSizeDialog
     }
@@ -591,15 +603,31 @@ Rectangle {
             HeaderSeparator {}
 
             IconButton {
+                glyph: Theme.icons.wand
+                variant: "ghost"
+                text: qsTr("HyperFrames")
+                tooltip: qsTr("HyperFrames Studio — vinhetas e motion graphics")
+                anchors.verticalCenter: parent.verticalCenter
+                onClicked: hyperframesStudioDialog.openDialog()
+            }
+
+            IconButton {
+                glyph: Theme.icons.sparkles
+                variant: "ghost"
+                text: qsTr("OmniStudio")
+                tooltip: qsTr("OmniStudio — clonagem de voz e geração de vídeo IA")
+                anchors.verticalCenter: parent.verticalCenter
+                onClicked: omniStudioDialog.openDialog()
+            }
+
+            IconButton {
                 glyph: Theme.icons.bot
                 variant: "ghost"
-                text: qsTr("Agent")
-                active: EditorState.mcpRunning
-                tooltip: EditorState.mcpRunning
-                         ? qsTr("Agent access is on")
-                         : qsTr("Agent access")
+                text: qsTr("Agente IA")
+                active: aiAgentDialog.visible
+                tooltip: qsTr("Agente IA Interno (Gemini, OpenRouter, Groq, OpenCode)")
                 anchors.verticalCenter: parent.verticalCenter
-                onClicked: agentAccessDialog.openDialog()
+                onClicked: aiAgentDialog.openDialog()
             }
 
             HeaderSeparator {}
