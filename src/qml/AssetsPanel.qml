@@ -623,7 +623,7 @@ PanelFrame {
         if (tabId === "text" || tabId === "subtitles" || tabId === "stickers" || tabId === "shapes"
                 || tabId === "effects" || tabId === "templates" || tabId === "adjustment"
                 || tabId === "sounds" || tabId === "transitions" || tabId === "masks"
-                || tabId === "shortcuts" || tabId === "scenes")
+                || tabId === "settings" || tabId === "shortcuts" || tabId === "scenes")
             return false
         const kinds = kindsForTab(tabId)
         return kinds.length === 0 || kinds.indexOf(kind) >= 0
@@ -643,6 +643,7 @@ PanelFrame {
         "templates": qsTr("Templates"),
         "transitions": qsTr("Transitions"),
         "sounds": qsTr("Audio FX"),
+        "settings": qsTr("Settings"),
         "shortcuts": qsTr("Shortcuts")
     })
 
@@ -663,6 +664,7 @@ PanelFrame {
         ListElement { tabId: "transitions"; icon: 7; separatorAfter: false }
         ListElement { tabId: "sounds"; icon: 8; separatorAfter: true }
         ListElement { tabId: "shortcuts"; icon: 9; separatorAfter: false }
+        ListElement { tabId: "settings"; icon: 12; separatorAfter: false }
     }
     property var tabIcons: [
         Theme.icons.film,
@@ -676,7 +678,8 @@ PanelFrame {
         Theme.icons.audioLines,
         Theme.icons.keyboard,
         Theme.icons.listVideo,
-        Theme.icons.mask
+        Theme.icons.mask,
+        Theme.icons.settings
     ]
     property int activeTab: 0
 
@@ -1049,6 +1052,13 @@ PanelFrame {
 
             ShortcutsTab {
                 visible: tabsModel.get(activeTab).tabId === "shortcuts"
+                width: parent.width
+                opacity: root.tabOpacity
+                height: parent.height - Theme.panelHeaderHeight
+            }
+
+            SettingsPane {
+                visible: tabsModel.get(activeTab).tabId === "settings"
                 width: parent.width
                 opacity: root.tabOpacity
                 height: parent.height - Theme.panelHeaderHeight
