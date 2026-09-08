@@ -55,6 +55,12 @@ QString stripAnsi(const QString &text)
     return QString(text).remove(ansiRegex).trimmed();
 }
 
+QString cleanActionTags(const QString &text)
+{
+    static const QRegularExpression actionRegex(QStringLiteral(R"(\[ACTION:[A-Z_]+[^\]]*\])"), QRegularExpression::CaseInsensitiveOption);
+    return QString(text).remove(actionRegex).trimmed();
+}
+
 QString findCodexExecutable()
 {
     QString exe = QStandardPaths::findExecutable(QStringLiteral("codex"));
@@ -310,6 +316,8 @@ void AiAgentController::sendMessage(const QString &prompt)
     if (prompt.trimmed().isEmpty() || m_isBusy)
         return;
 
+    m_lastUserPrompt = prompt.trimmed();
+
     appendChatMessage(QStringLiteral("user"), prompt.trimmed());
     setBusy(true, tr("Consultando IA (%1)...").arg(m_provider));
 
@@ -374,8 +382,9 @@ void AiAgentController::sendMessage(const QString &prompt)
             }
 
             if (!replyText.isEmpty()) {
-                this->appendChatMessage(QStringLiteral("assistant"), replyText);
-                this->executeActionFromResponse(replyText);
+                const QString cleanReply = cleanActionTags(replyText);
+                this->appendChatMessage(QStringLiteral("assistant"), cleanReply.isEmpty() ? tr("🎬 Ação identificada! Injetando na timeline...") : cleanReply);
+                this->executeActionFromResponse(replyText, this->m_lastUserPrompt);
             }
         });
 
@@ -427,8 +436,9 @@ void AiAgentController::sendMessage(const QString &prompt)
             }
 
             if (!replyText.isEmpty()) {
-                this->appendChatMessage(QStringLiteral("assistant"), replyText);
-                this->executeActionFromResponse(replyText);
+                const QString cleanReply = cleanActionTags(replyText);
+                this->appendChatMessage(QStringLiteral("assistant"), cleanReply.isEmpty() ? tr("🎬 Ação identificada! Injetando na timeline...") : cleanReply);
+                this->executeActionFromResponse(replyText, this->m_lastUserPrompt);
             }
         });
 
@@ -481,8 +491,9 @@ void AiAgentController::sendMessage(const QString &prompt)
                 }
 
                 if (!replyText.isEmpty()) {
-                    this->appendChatMessage(QStringLiteral("assistant"), replyText);
-                    this->executeActionFromResponse(replyText);
+                    const QString cleanReply = cleanActionTags(replyText);
+                    this->appendChatMessage(QStringLiteral("assistant"), cleanReply.isEmpty() ? tr("🎬 Ação identificada! Injetando na timeline...") : cleanReply);
+                    this->executeActionFromResponse(replyText, this->m_lastUserPrompt);
                 }
             });
 
@@ -628,51 +639,138 @@ void AiAgentController::handleAiReply()
         return;
     }
 
-    appendChatMessage(QStringLiteral("assistant"), replyText);
-    executeActionFromResponse(replyText);
+    const QString cleanReply = cleanActionTags(replyText);
+    appendChatMessage(QStringLiteral("assistant"), cleanReply.isEmpty() ? tr("🎬 Ação identificada! Injetando na timeline...") : cleanReply);
+    executeActionFromResponse(replyText, m_lastUserPrompt);
 }
 
-void AiAgentController::executeActionFromResponse(const QString &response)
+void AiAgentController::executeActionFromResponse(const QString &response, const QString &userPrompt)
 {
-    // Check for [ACTION:HYPERFRAMES|template|title|subtitle]
-    static const QRegularExpression hfRegex(QStringLiteral(R"(\[ACTION:HYPERFRAMES\|([^|]+)\|([^|]+)\|([^\]]+)\])"));
+    // 1. Check for [ACTION:HYPERFRAMES|...]
+    static const QRegularExpression hfRegex(QStringLiteral(R"(\[ACTION:HYPERFRAMES[|:]([^\]]+)\])"), QRegularExpression::CaseInsensitiveOption);
     const auto hfMatch = hfRegex.match(response);
     if (hfMatch.hasMatch()) {
-        const QString tmpl = hfMatch.captured(1).trimmed();
-        const QString title = hfMatch.captured(2).trimmed();
-        const QString subtitle = hfMatch.captured(3).trimmed();
+        const QString rawContent = hfMatch.captured(1).trimmed();
+        const QStringList parts = rawContent.split(QLatin1Char('|'));
+        QString tmpl = QStringLiteral("lower_third");
+        QString title;
+        QString subtitle;
+
+        if (parts.size() >= 1) {
+            const QString p0 = parts.value(0).trimmed();
+            if (p0.compare(QStringLiteral("lower_third"), Qt::CaseInsensitive) == 0 ||
+                p0.compare(QStringLiteral("title_card"), Qt::CaseInsensitive) == 0 ||
+                p0.compare(QStringLiteral("social_card"), Qt::CaseInsensitive) == 0) {
+                tmpl = p0.toLower();
+                title = parts.value(1).trimmed();
+                subtitle = parts.value(2).trimmed();
+            } else {
+                title = p0;
+                subtitle = parts.value(1).trimmed();
+            }
+        }
+
+        if (title.isEmpty()) {
+            static const QRegularExpression nameRegex(QStringLiteral(R"((?:nome|canal|título|texto)\s+["']?([^"',.\n]+)["']?)"), QRegularExpression::CaseInsensitiveOption);
+            auto nm = nameRegex.match(userPrompt);
+            if (nm.hasMatch()) {
+                title = nm.captured(1).trimmed();
+            } else {
+                title = QStringLiteral("DLuz Games");
+            }
+        }
+
         createHyperframes(title, subtitle, tmpl);
         return;
     }
 
-    // Check for [ACTION:REMOVE_SILENCE|threshold|min_duration|padding]
-    static const QRegularExpression silRegex(QStringLiteral(R"(\[ACTION:REMOVE_SILENCE\|([^|]+)\|([^|]+)\|([^\]]+)\])"));
+    // 2. Check for [ACTION:REMOVE_SILENCE|...]
+    static const QRegularExpression silRegex(QStringLiteral(R"(\[ACTION:REMOVE_SILENCE[|:]([^\]]*)\])"), QRegularExpression::CaseInsensitiveOption);
     const auto silMatch = silRegex.match(response);
     if (silMatch.hasMatch()) {
-        const double th = silMatch.captured(1).toDouble();
-        const double md = silMatch.captured(2).toDouble();
-        const double pad = silMatch.captured(3).toDouble();
-        runSilenceRemoval(th > 0 ? -th : th, md, pad);
+        const QString rawContent = silMatch.captured(1).trimmed();
+        const QStringList parts = rawContent.split(QLatin1Char('|'));
+        double th = parts.value(0).toDouble();
+        if (th >= 0.0) th = -30.0;
+        double md = parts.value(1).toDouble();
+        if (md <= 0.0) md = 0.3;
+        double pad = parts.value(2).toDouble();
+        if (pad <= 0.0) pad = 0.08;
+
+        runSilenceRemoval(th, md, pad);
         return;
     }
 
-    // Check for [ACTION:CLONE_VOICE|engine|text]
-    static const QRegularExpression voiceRegex(QStringLiteral(R"(\[ACTION:CLONE_VOICE\|([^|]+)\|([^\]]+)\])"));
+    // 3. Check for [ACTION:CLONE_VOICE|...]
+    static const QRegularExpression voiceRegex(QStringLiteral(R"(\[ACTION:CLONE_VOICE[|:]([^\]]+)\])"), QRegularExpression::CaseInsensitiveOption);
     const auto voiceMatch = voiceRegex.match(response);
     if (voiceMatch.hasMatch()) {
-        const QString eng = voiceMatch.captured(1).trimmed();
-        const QString text = voiceMatch.captured(2).trimmed();
+        const QString rawContent = voiceMatch.captured(1).trimmed();
+        const QStringList parts = rawContent.split(QLatin1Char('|'));
+        QString eng = QStringLiteral("omnivoice");
+        QString text;
+        if (parts.size() >= 2) {
+            eng = parts.value(0).trimmed();
+            text = parts.value(1).trimmed();
+        } else {
+            text = parts.value(0).trimmed();
+        }
+        if (text.isEmpty()) {
+            text = QStringLiteral("Fala melhores, beleza? Bem-vindos ao canal DLuz Games!");
+        }
         synthesizeVoice(text, eng);
         return;
     }
 
-    // Check for [ACTION:OMNIFLASH|aspect|prompt]
-    static const QRegularExpression omniRegex(QStringLiteral(R"(\[ACTION:OMNIFLASH\|([^|]+)\|([^\]]+)\])"));
+    // 4. Check for [ACTION:OMNIFLASH|...]
+    static const QRegularExpression omniRegex(QStringLiteral(R"(\[ACTION:OMNIFLASH[|:]([^\]]+)\])"), QRegularExpression::CaseInsensitiveOption);
     const auto omniMatch = omniRegex.match(response);
     if (omniMatch.hasMatch()) {
-        const QString aspect = omniMatch.captured(1).trimmed();
-        const QString pr = omniMatch.captured(2).trimmed();
+        const QString rawContent = omniMatch.captured(1).trimmed();
+        const QStringList parts = rawContent.split(QLatin1Char('|'));
+        QString aspect = QStringLiteral("16:9");
+        QString pr;
+        if (parts.size() >= 2) {
+            aspect = parts.value(0).trimmed();
+            pr = parts.value(1).trimmed();
+        } else {
+            pr = parts.value(0).trimmed();
+        }
         generateOmniFlash(pr, aspect);
+        return;
+    }
+
+    // 5. Fallback Intent Detection (if model didn't emit [ACTION:...])
+    const QString pLower = userPrompt.toLower();
+    if (pLower.contains(QStringLiteral("lower third")) || pLower.contains(QStringLiteral("lower-third")) ||
+        pLower.contains(QStringLiteral("vinheta")) || pLower.contains(QStringLiteral("card de título")) ||
+        pLower.contains(QStringLiteral("card social"))) {
+        QString tmpl = QStringLiteral("lower_third");
+        if (pLower.contains(QStringLiteral("card de título")) || pLower.contains(QStringLiteral("kinetic")))
+            tmpl = QStringLiteral("title_card");
+        else if (pLower.contains(QStringLiteral("card social")) || pLower.contains(QStringLiteral("redes sociais")))
+            tmpl = QStringLiteral("social_card");
+
+        QString title = QStringLiteral("DLuz Games");
+        static const QRegularExpression nameRegex(QStringLiteral(R"((?:nome|canal|título|texto)\s+["']?([^"',.\n]+)["']?)"), QRegularExpression::CaseInsensitiveOption);
+        auto nm = nameRegex.match(userPrompt);
+        if (nm.hasMatch()) {
+            title = nm.captured(1).trimmed();
+        }
+
+        createHyperframes(title, QString(), tmpl);
+        return;
+    }
+
+    if (pLower.contains(QStringLiteral("remover silêncio")) || pLower.contains(QStringLiteral("remover silencios")) ||
+        pLower.contains(QStringLiteral("cortar silêncios")) || pLower.contains(QStringLiteral("remover pausas"))) {
+        runSilenceRemoval(-30.0, 0.3, 0.08);
+        return;
+    }
+
+    if (pLower.contains(QStringLiteral("locução")) || pLower.contains(QStringLiteral("locucao")) ||
+        (pLower.contains(QStringLiteral("voz")) && (pLower.contains(QStringLiteral("clon")) || pLower.contains(QStringLiteral("dluz"))))) {
+        synthesizeVoice(QStringLiteral("Fala melhores, beleza? Bem-vindos ao canal DLuz Games!"), QStringLiteral("omnivoice"));
         return;
     }
 }
@@ -696,6 +794,8 @@ void AiAgentController::createHyperframes(const QString &title, const QString &s
                                          const QString &templateType, const QString &customHtml)
 {
     setBusy(true, tr("Gerando e renderizando HyperFrames..."));
+    appendChatMessage(QStringLiteral("assistant"),
+                      tr("🎬 Iniciando renderização da vinheta HyperFrames (%1: \"%2\"). Injetando na timeline...").arg(templateType, title));
 
     // Prepare temp directory
     const QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation)
@@ -842,19 +942,20 @@ void AiAgentController::createHyperframes(const QString &title, const QString &s
     });
 
     const QString mjsPath = QStringLiteral("C:/Users/dluzgg/AppData/Roaming/npm/node_modules/hyperframes/bin/hyperframes.mjs");
+    const QString nativeTempDir = QDir::toNativeSeparators(tempDir);
+    const QString nativeOutFile = QDir::toNativeSeparators(outFile);
+
     if (QFile::exists(mjsPath)) {
-        proc->start(QStringLiteral("node"),
-                    QStringList{mjsPath, QStringLiteral("render"), tempDir, QStringLiteral("-o"), outFile});
-    } else {
-        const QString hfCmd = QStringLiteral("C:/Users/dluzgg/AppData/Roaming/npm/hyperframes.cmd");
-        if (QFile::exists(hfCmd)) {
-            proc->start(hfCmd,
-                        QStringList{QStringLiteral("render"), tempDir, QStringLiteral("-o"), outFile});
-        } else {
-            proc->start(QStringLiteral("cmd.exe"),
-                        QStringList{QStringLiteral("/c"), QStringLiteral("npx"), QStringLiteral("hyperframes"),
-                                    QStringLiteral("render"), tempDir, QStringLiteral("-o"), outFile});
+        QString nodeExe = QStandardPaths::findExecutable(QStringLiteral("node"));
+        if (nodeExe.isEmpty()) {
+            nodeExe = QStringLiteral("C:/Program Files/nodejs/node.exe");
         }
+        proc->start(nodeExe,
+                    QStringList{mjsPath, QStringLiteral("render"), nativeTempDir, QStringLiteral("-o"), nativeOutFile});
+    } else {
+        proc->start(QStringLiteral("cmd.exe"),
+                    QStringList{QStringLiteral("/c"), QStringLiteral("hyperframes"),
+                                QStringLiteral("render"), nativeTempDir, QStringLiteral("-o"), nativeOutFile});
     }
 }
 

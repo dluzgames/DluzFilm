@@ -112,7 +112,7 @@ private:
     void setBusy(bool busy, const QString &msg = QString());
     void appendChatMessage(const QString &role, const QString &text, const QString &action = QString());
     QString buildSystemPrompt() const;
-    void executeActionFromResponse(const QString &response);
+    void executeActionFromResponse(const QString &response, const QString &userPrompt = QString());
 
     AppController *m_controller = nullptr;
     QNetworkAccessManager m_nam;
@@ -128,4 +128,5 @@ private:
     bool m_isBusy = false;
     QString m_statusMessage;
     QVariantList m_chatHistory;
+    QString m_lastUserPrompt;
 };

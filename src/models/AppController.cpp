@@ -5147,6 +5147,25 @@ bool AppController::importMediaToTimeline(const QString &filePath, double atSeco
     if (targetTrack >= 0 && targetTrack < m_project.tracks().size()) {
         addClipFromAssetAt(assetIdx, targetTrack, pos);
     } else {
+        const QVariantMap asset = m_assetLibrary->assetAt(assetIdx);
+        const QString kind = asset.value(QStringLiteral("kind")).toString();
+        const drift::ClipType clipType = drift::clipTypeFromString(kind);
+        const int defTrack = drift::defaultTrackForClipType(m_project, clipType);
+        if (defTrack >= 0 && defTrack < m_project.tracks().size()) {
+            const drift::Track &tr = m_project.tracks()[defTrack];
+            bool hasOverlap = false;
+            const drift::TimeUs posUs = drift::secondsToUs(pos);
+            for (const drift::Clip &c : tr.clips) {
+                if (posUs >= c.timelineStart && posUs < c.timelineStart + c.timelineDuration) {
+                    hasOverlap = true;
+                    break;
+                }
+            }
+            if (hasOverlap && clipType == drift::ClipType::Video) {
+                addClipFromAssetOnNewTrack(assetIdx, pos);
+                return true;
+            }
+        }
         addClipFromAsset(assetIdx);
     }
     return true;
