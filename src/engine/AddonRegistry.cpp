@@ -128,7 +128,21 @@ bool writeRegistryLocked(QString *error)
 QString addonsDir()
 {
     const QString base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    return QDir(base).filePath(QStringLiteral("addons"));
+    const QString primary = QDir(base).filePath(QStringLiteral("addons"));
+    if (QFile::exists(QDir(primary).filePath(QStringLiteral("installed.json")))) {
+        return primary;
+    }
+
+    // Fallback: If installed.json is not in Dluz Film AppData, check legacy CutWire Drift addons
+    QDir roaming(base);
+    if (roaming.cdUp() && roaming.cdUp()) {
+        const QString legacy = roaming.filePath(QStringLiteral("CutWire Drift/CutWire Drift/addons"));
+        if (QFile::exists(QDir(legacy).filePath(QStringLiteral("installed.json")))) {
+            return legacy;
+        }
+    }
+
+    return primary;
 }
 
 QString addonInstallDir(const QString &id)
