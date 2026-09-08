@@ -70,6 +70,7 @@ public:
 
     Q_INVOKABLE void sendMessage(const QString &prompt);
     Q_INVOKABLE void clearChat();
+    Q_INVOKABLE void copyToClipboard(const QString &text);
 
     // HyperFrames creation and rendering
     Q_INVOKABLE void createHyperframes(const QString &title, const QString &subtitle,

@@ -16,6 +16,8 @@
 #include <QRegularExpression>
 #include <QUuid>
 #include <QProcess>
+#include <QGuiApplication>
+#include <QClipboard>
 
 #ifdef Q_OS_WIN
 #ifndef WIN32_LEAN_AND_MEAN
@@ -277,6 +279,14 @@ void AiAgentController::clearChat()
 {
     m_chatHistory.clear();
     emit chatHistoryChanged();
+}
+
+void AiAgentController::copyToClipboard(const QString &text)
+{
+    if (text.isEmpty())
+        return;
+    if (QClipboard *clip = QGuiApplication::clipboard())
+        clip->setText(text);
 }
 
 QString AiAgentController::buildSystemPrompt() const
