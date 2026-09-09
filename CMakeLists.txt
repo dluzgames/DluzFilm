@@ -823,6 +823,7 @@ qt_add_qml_module(drift
         src/qml/components/SilenceRemoverDialog.qml
         src/qml/components/HyperframesStudioDialog.qml
         src/qml/components/OmniFlashDialog.qml
+        src/qml/components/OmniFlashClipDialog.qml
         src/qml/components/OmniStudioDialog.qml
         src/qml/components/AiAgentDialog.qml
         src/qml/components/VideoSizeDialog.qml

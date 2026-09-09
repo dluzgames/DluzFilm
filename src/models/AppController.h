@@ -912,6 +912,9 @@ public:
     Q_INVOKABLE void setClipTextContent(int trackIndex, int clipIndex, const QString &text);
     // Display label on the timeline / inspector. Does not rename the source file.
     Q_INVOKABLE void setClipName(int trackIndex, int clipIndex, const QString &name);
+    // Substituição pontual de mídia na timeline mantendo posição e integridade (OmniFlash/Flow)
+    Q_INVOKABLE bool replaceClipMedia(int trackIndex, int clipIndex, const QString &newFilePath);
+    Q_INVOKABLE bool insertClipAbove(int referenceTrackIndex, int referenceClipIndex, const QString &newFilePath);
     // Live text edits (preview drag) keep the canvas and properties panel in sync
     // while typing; commitTextEdit trims and pushes undo.
     Q_INVOKABLE void previewSetClipTextContent(int trackIndex, int clipIndex, const QString &text);

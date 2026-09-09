@@ -10763,6 +10763,100 @@ void AppController::setClipName(int trackIndex, int clipIndex, const QString &na
     finishEdit(tr("Clip renamed"));
 }
 
+bool AppController::replaceClipMedia(int trackIndex, int clipIndex, const QString &newFilePath)
+{
+    if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
+        return false;
+
+    drift::Track &track = m_project.tracks()[trackIndex];
+    if (clipIndex < 0 || clipIndex >= track.clips.size())
+        return false;
+
+    if (!m_assetLibrary)
+        return false;
+
+    const QStringList ids = m_assetLibrary->importLocalPaths({newFilePath});
+    if (ids.isEmpty())
+        return false;
+
+    const QString newAssetId = ids.first();
+    const drift::MediaAsset *asset = m_project.asset(newAssetId);
+    if (!asset)
+        return false;
+
+    const drift::Project before = m_project.detachedCopy();
+    drift::Clip &clip = track.clips[clipIndex];
+    clip.assetId = newAssetId;
+    clip.path = asset->path;
+    clip.name = asset->name;
+    clip.thumbnailPath = asset->thumbnailPath;
+    clip.filmstripPath = asset->filmstripPath;
+    if (asset->durationUs > 0 && clip.timelineDuration > asset->durationUs) {
+        clip.timelineDuration = asset->durationUs;
+        clip.srcOut = asset->durationUs;
+    }
+    fitClipLayoutToCanvas(clip, asset->width, asset->height, m_project.width(), m_project.height());
+
+    pushProjectEdit(before, tr("Edit with OmniFlash"));
+    finishEdit(tr("Edit with OmniFlash"));
+    setLastMessage(tr("Clip updated with OmniFlash"), QStringLiteral("info"));
+    return true;
+}
+
+bool AppController::insertClipAbove(int referenceTrackIndex, int referenceClipIndex, const QString &newFilePath)
+{
+    if (referenceTrackIndex < 0 || referenceTrackIndex >= m_project.tracks().size())
+        return false;
+
+    drift::Track &refTrack = m_project.tracks()[referenceTrackIndex];
+    if (referenceClipIndex < 0 || referenceClipIndex >= refTrack.clips.size())
+        return false;
+
+    if (!m_assetLibrary)
+        return false;
+
+    const QStringList ids = m_assetLibrary->importLocalPaths({newFilePath});
+    if (ids.isEmpty())
+        return false;
+
+    const QString newAssetId = ids.first();
+    const drift::MediaAsset *asset = m_project.asset(newAssetId);
+    if (!asset)
+        return false;
+
+    const drift::Project before = m_project.detachedCopy();
+    const drift::Clip refClip = refTrack.clips[referenceClipIndex];
+
+    drift::Track newTrack;
+    newTrack.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    newTrack.type = drift::TrackType::Video;
+    newTrack.name = QStringLiteral("OmniFlash Flow");
+
+    drift::Clip newClip;
+    newClip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    newClip.assetId = newAssetId;
+    newClip.type = drift::ClipType::Video;
+    newClip.name = asset->name;
+    newClip.path = asset->path;
+    newClip.thumbnailPath = asset->thumbnailPath;
+    newClip.filmstripPath = asset->filmstripPath;
+    newClip.timelineStart = refClip.timelineStart;
+    newClip.timelineDuration = (asset->durationUs > 0 && asset->durationUs < refClip.timelineDuration)
+                               ? asset->durationUs : refClip.timelineDuration;
+    newClip.srcIn = 0;
+    newClip.srcOut = newClip.timelineDuration;
+    fitClipLayoutToCanvas(newClip, asset->width, asset->height, m_project.width(), m_project.height());
+
+    newTrack.clips.append(newClip);
+    int insertIndex = qMax(0, referenceTrackIndex);
+    m_project.tracks().insert(insertIndex, newTrack);
+
+    pushProjectEdit(before, tr("Edit with OmniFlash (New Track)"));
+    finishEdit(tr("Edit with OmniFlash (New Track)"));
+    setLastMessage(tr("OmniFlash clip added above"), QStringLiteral("info"));
+    return true;
+}
+
 void AppController::previewSetClipTextContent(int trackIndex, int clipIndex, const QString &text)
 {
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())

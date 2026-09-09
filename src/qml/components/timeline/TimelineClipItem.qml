@@ -1040,6 +1040,15 @@ Item {
                 icon.name: Theme.icons.pencil
                 onTriggered: clipItem.panel.requestRenameClip(clipItem.trackIndex, clipItem.clipIndex)
             }
+            ThemedMenuItem {
+                text: qsTr("Editar com OmniFlash (Flow)…")
+                icon.name: Theme.icons.sparkles
+                visible: clipItem.trackType === "video" && clipItem.clipData.kind !== "adjustment"
+                onTriggered: {
+                    if (typeof clipItem.panel.requestEditWithOmniFlash === "function")
+                        clipItem.panel.requestEditWithOmniFlash(clipItem.trackIndex, clipItem.clipIndex)
+                }
+            }
             ThemedMenuSeparator { }
             ThemedMenuItem {
                 text: qsTr("Copy effects")

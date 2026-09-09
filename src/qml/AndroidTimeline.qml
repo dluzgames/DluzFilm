@@ -82,6 +82,19 @@ Item {
         clipRenameDialog.open()
     }
 
+    function requestEditWithOmniFlash(trackIndex, clipIndex) {
+        if (trackIndex < 0 || clipIndex < 0 || trackIndex >= root.tracks.length)
+            return
+        const clips = root.tracks[trackIndex].clips || []
+        if (clipIndex >= clips.length)
+            return
+        omniFlashClipDialog.openForClip(trackIndex, clipIndex, clips[clipIndex])
+    }
+
+    OmniFlashClipDialog {
+        id: omniFlashClipDialog
+    }
+
     function requestSaveEffectPreset(trackIndex, clipIndex) {
         if (trackIndex < 0 || clipIndex < 0)
             return

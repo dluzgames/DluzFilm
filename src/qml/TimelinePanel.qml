@@ -743,6 +743,15 @@ PanelFrame {
         clipRenameDialog.open()
     }
 
+    function requestEditWithOmniFlash(trackIndex, clipIndex) {
+        if (trackIndex < 0 || clipIndex < 0 || trackIndex >= root.tracks.length)
+            return
+        const clips = root.tracks[trackIndex].clips || []
+        if (clipIndex >= clips.length)
+            return
+        omniFlashClipDialog.openForClip(trackIndex, clipIndex, clips[clipIndex])
+    }
+
     // Seeking while the engine clock is running lands ahead of the click: the
     // sink's processedUSecs is cumulative from play(), so the visible playhead
     // becomes clickTime + elapsed. Pause for the gesture and resume on release.
@@ -2428,5 +2437,9 @@ PanelFrame {
             root.savePresetTrack = -1
             root.savePresetClip = -1
         }
+    }
+
+    OmniFlashClipDialog {
+        id: omniFlashClipDialog
     }
 }

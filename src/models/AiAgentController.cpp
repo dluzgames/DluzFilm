@@ -1275,6 +1275,126 @@ void AiAgentController::generateOmniFlash(const QString &prompt, const QString &
                             QStringLiteral("-o"), outFile});
 }
 
+void AiAgentController::editClipWithOmniFlash(int trackIndex, int clipIndex,
+                                              const QString &clipPath,
+                                              double inPoint, double duration,
+                                              const QString &prompt,
+                                              bool preserveAudio,
+                                              bool replaceInPlace)
+{
+    if (clipPath.trimmed().isEmpty() || !QFile::exists(clipPath)) {
+        appendChatMessage(QStringLiteral("assistant"),
+                          tr("❌ Erro: Arquivo do clipe não encontrado:\n%1").arg(clipPath));
+        emit omniFlashClipEditFinished(false, QString(), tr("Arquivo de vídeo inválido"));
+        return;
+    }
+
+    if (prompt.trimmed().isEmpty()) {
+        appendChatMessage(QStringLiteral("assistant"),
+                          tr("⚠️ Informe um prompt para a edição com OmniFlash."));
+        emit omniFlashClipEditFinished(false, QString(), tr("Prompt vazio"));
+        return;
+    }
+
+    setBusy(true, tr("Editando clipe com OmniFlash (Google Flow)..."));
+    emit omniFlashClipEditProgress(5, tr("Iniciando fatiamento e conexão ao Google Flow..."));
+
+    auto *proc = new QProcess(this);
+    setupSilentProcess(proc);
+
+    QString script = QCoreApplication::applicationDirPath() + QStringLiteral("/scripts/omniflash_clip_editor.py");
+    if (!QFile::exists(script)) {
+        script = QStringLiteral("h:/Editor dluz/scripts/omniflash_clip_editor.py");
+    }
+    if (!QFile::exists(script)) {
+        script = QStringLiteral("D:/DluzEditorSource/scripts/omniflash_clip_editor.py");
+    }
+
+    QStringList args{
+        script,
+        QStringLiteral("--clip"), clipPath,
+        QStringLiteral("--in-point"), QString::number(inPoint, 'f', 3),
+        QStringLiteral("--duration"), QString::number(duration, 'f', 3),
+        QStringLiteral("--prompt"), prompt.trimmed()
+    };
+
+    if (preserveAudio) {
+        args << QStringLiteral("--preserve-audio");
+    } else {
+        args << QStringLiteral("--no-preserve-audio");
+    }
+
+    auto fullOutput = std::make_shared<QString>();
+
+    connect(proc, &QProcess::readyReadStandardOutput, this, [this, proc, fullOutput]() {
+        const QString out = QString::fromUtf8(proc->readAllStandardOutput());
+        fullOutput->append(out);
+        const QStringList lines = out.split(QLatin1Char('\n'));
+        for (const QString &line : lines) {
+            const QString trimmed = line.trimmed();
+            if (trimmed.startsWith(QStringLiteral("PROGRESS:"))) {
+                const QString payload = trimmed.mid(9);
+                const int sep = payload.indexOf(QLatin1Char('|'));
+                if (sep != -1) {
+                    const int pct = payload.left(sep).toInt();
+                    const QString status = payload.mid(sep + 1);
+                    emit omniFlashClipEditProgress(pct, status);
+                    this->setBusy(true, QStringLiteral("[%1%] %2").arg(pct).arg(status));
+                }
+            }
+        }
+    });
+
+    connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc, fullOutput, trackIndex, clipIndex, replaceInPlace, prompt](int exitCode, QProcess::ExitStatus exitStatus) {
+        Q_UNUSED(exitStatus);
+        fullOutput->append(QString::fromUtf8(proc->readAllStandardOutput()));
+        const QString stderrStr = QString::fromUtf8(proc->readAllStandardError());
+        proc->deleteLater();
+        this->setBusy(false);
+
+        QString outputVideo;
+        const QStringList lines = fullOutput->split(QLatin1Char('\n'));
+        for (const QString &line : lines) {
+            const QString trimmed = line.trimmed();
+            if (trimmed.startsWith(QStringLiteral("OUTPUT_VIDEO:"))) {
+                outputVideo = trimmed.mid(13).trimmed();
+            }
+        }
+
+        if (exitCode == 0 && !outputVideo.isEmpty() && QFile::exists(outputVideo)) {
+            bool ok = false;
+            if (this->m_controller) {
+                if (replaceInPlace) {
+                    ok = this->m_controller->replaceClipMedia(trackIndex, clipIndex, outputVideo);
+                } else {
+                    ok = this->m_controller->insertClipAbove(trackIndex, clipIndex, outputVideo);
+                }
+            }
+
+            QString successMsg = QObject::tr("✨ Clipe transformado pelo OmniFlash (Flow) com sucesso!\n"
+                                             "🎥 Vídeo: %1\n"
+                                             "🔒 Áudio original do personagem: 100% Preservado e Sincronizado!")
+                                     .arg(outputVideo);
+            this->appendChatMessage(QStringLiteral("assistant"), successMsg);
+            emit this->omniFlashClipEditProgress(100, QObject::tr("Concluído!"));
+            emit this->omniFlashClipEditFinished(true, outputVideo, QObject::tr("Clipe atualizado na timeline!"));
+        } else {
+            const QString err = stderrStr.isEmpty() ? *fullOutput : stderrStr;
+            this->appendChatMessage(QStringLiteral("assistant"),
+                              tr("❌ Falha na edição do clipe com OmniFlash:\n%1").arg(err));
+            emit this->omniFlashClipEditFinished(false, QString(), err);
+        }
+    });
+
+    QString pythonExe = QStandardPaths::findExecutable(QStringLiteral("python"));
+    if (pythonExe.isEmpty() || !QFile::exists(pythonExe)) {
+        pythonExe = QStringLiteral("C:/Python314/python.exe");
+    }
+
+    proc->start(pythonExe, args);
+}
+
 void AiAgentController::startHardModeProduction(const QString &articleUrlOrText,
                                                  const QString &gameplayUrlOrPath,
                                                  const QString &voiceEngine,

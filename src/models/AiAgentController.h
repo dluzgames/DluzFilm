@@ -97,6 +97,14 @@ public:
     Q_INVOKABLE void generateOmniFlash(const QString &prompt,
                                        const QString &aspectRatio = QStringLiteral("16:9"));
 
+    // OmniFlash Clip Editing (Flow video transformation with preserved original voice)
+    Q_INVOKABLE void editClipWithOmniFlash(int trackIndex, int clipIndex,
+                                           const QString &clipPath,
+                                           double inPoint, double duration,
+                                           const QString &prompt,
+                                           bool preserveAudio = true,
+                                           bool replaceInPlace = true);
+
     // Quick Silence Remover trigger
     Q_INVOKABLE void runSilenceRemoval(double threshold = -30.0, double minDuration = 0.3, double padding = 0.08);
 
@@ -122,6 +130,8 @@ signals:
     void voiceSynthesisFinished(bool success, const QString &outputPath, const QString &message);
     void videoDubbingFinished(bool success, const QString &videoPath, const QString &srtPath, const QString &message);
     void omniFlashFinished(bool success, const QString &outputPath, const QString &message);
+    void omniFlashClipEditProgress(int percent, const QString &statusText);
+    void omniFlashClipEditFinished(bool success, const QString &outputPath, const QString &message);
     void hardModeProgress(int percent, const QString &statusText);
     void hardModeFinished(bool success, const QString &manifestPath, const QString &message);
 
