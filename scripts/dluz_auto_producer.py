@@ -411,7 +411,7 @@ def synthesize_narration(segments: list[dict], audio_dir: Path, engine: str, voi
         log_progress(55 + int((idx / len(segments)) * 15), f"Sintetizando bloco {idx+1}/{len(segments)}...")
 
         cmd = [
-            "python", DUBBER_SCRIPT,
+            sys.executable, DUBBER_SCRIPT,
             "--tts", text,
             "--engine", engine,
             "--output", str(out_wav),
@@ -421,8 +421,19 @@ def synthesize_narration(segments: list[dict], audio_dir: Path, engine: str, voi
         ]
         res = subprocess.run(cmd, capture_output=True, text=True)
 
+        if res.returncode != 0 or not out_wav.exists() or out_wav.stat().st_size < 1000:
+            print(f"[Aviso] Falha na síntese OmniVoice bloco {idx+1}: {res.stderr.strip() if res.stderr else 'arquivo vazio'}. Tentando fallback Edge-TTS...", flush=True)
+            cmd_fb = [
+                sys.executable, DUBBER_SCRIPT,
+                "--tts", text,
+                "--engine", "edge_tts",
+                "--output", str(out_wav),
+                "--lang", "pt-BR" if lang.startswith("pt") else lang
+            ]
+            subprocess.run(cmd_fb, capture_output=True, text=True)
+
         dur = 5.0
-        if out_wav.exists():
+        if out_wav.exists() and out_wav.stat().st_size > 1000:
             probe = ["ffprobe", "-v", "error", "-show_entries", "format=duration",
                      "-of", "default=noprint_wrappers=1:nokey=1", str(out_wav)]
             try:
@@ -430,6 +441,7 @@ def synthesize_narration(segments: list[dict], audio_dir: Path, engine: str, voi
             except Exception:
                 dur = max(3.0, len(text.split()) * 0.35)
         else:
+            print(f"[Erro crítico] Não foi possível sintetizar áudio para o bloco {idx+1}. Gerando silêncio de segurança.", flush=True)
             subprocess.run([
                 "ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono",
                 "-t", "5.0", str(out_wav)
