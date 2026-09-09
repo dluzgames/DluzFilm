@@ -308,7 +308,8 @@ QString AiAgentController::buildSystemPrompt() const
                                   "- Sintetizar voz com OmniVoice: [ACTION:CLONE_VOICE|omnivoice|texto completo aqui]\n"
                                   "- Gerar vídeo OmniFlash: [ACTION:OMNIFLASH|16:9|prompt da cena em inglês]\n"
                                   "- Ativar Chroma Key no clip selecionado: [ACTION:CHROMA_KEY]\n"
-                                  "- Fechar espaços / Modo magnético: [ACTION:CLOSE_GAPS]\n");
+                                  "- Fechar espaços / Modo magnético: [ACTION:CLOSE_GAPS]\n"
+                                  "- Modo Hard (Produzir vídeo completo a partir de link ou matéria): [ACTION:AUTO_PRODUCE|link_artigo|link_gameplay|omnivoice|16:9]\n");
 
     return info;
 }
@@ -823,7 +824,21 @@ void AiAgentController::executeActionFromResponse(const QString &response, const
         return;
     }
 
-    // 7. Fallback Intent Detection for magnetic mode / gaps
+    // 7. Check for [ACTION:AUTO_PRODUCE|article|gameplay|voice|format]
+    static const QRegularExpression autoProduceRegex(QStringLiteral(R"(\[ACTION:(?:AUTO_PRODUCE|MODO_HARD)[|:]([^\]]+)\])"), QRegularExpression::CaseInsensitiveOption);
+    const auto autoProduceMatch = autoProduceRegex.match(response);
+    if (autoProduceMatch.hasMatch()) {
+        const QString rawContent = autoProduceMatch.captured(1).trimmed();
+        const QStringList parts = rawContent.split(QLatin1Char('|'));
+        const QString article = parts.value(0).trimmed();
+        const QString gameplay = parts.value(1).trimmed();
+        const QString voice = parts.size() > 2 ? parts.value(2).trimmed() : QStringLiteral("omnivoice");
+        const QString format = parts.size() > 3 ? parts.value(3).trimmed() : QStringLiteral("16:9");
+        startHardModeProduction(article, gameplay, voice, QStringLiteral("pt"), format);
+        return;
+    }
+
+    // 8. Fallback Intent Detection for magnetic mode / gaps
     if (pLower.contains(QStringLiteral("modo magnetico")) || pLower.contains(QStringLiteral("modo magnético")) ||
         pLower.contains(QStringLiteral("magnetico")) || pLower.contains(QStringLiteral("magnético")) ||
         pLower.contains(QStringLiteral("fechar espaco")) || pLower.contains(QStringLiteral("fechar espacos")) ||
@@ -834,6 +849,38 @@ void AiAgentController::executeActionFromResponse(const QString &response, const
             m_controller->closeAllGaps();
             appendChatMessage(QStringLiteral("assistant"),
                               tr("🧲 Modo magnético ativado e todos os espaços vazios da timeline foram fechados com sucesso!"));
+            return;
+        }
+    }
+
+    // 9. Fallback Intent Detection for Hard Mode (Modo Hard) when user sends links or keywords
+    if (pLower.contains(QStringLiteral("modo hard")) || pLower.contains(QStringLiteral("hard mode")) ||
+        pLower.contains(QStringLiteral("criar vídeo")) || pLower.contains(QStringLiteral("criar video")) ||
+        pLower.contains(QStringLiteral("montar vídeo")) || pLower.contains(QStringLiteral("montar video")) ||
+        pLower.contains(QStringLiteral("produzir vídeo")) || pLower.contains(QStringLiteral("produzir video"))) {
+
+        static const QRegularExpression urlRegex(QStringLiteral(R"(https?://[^\s]+)"), QRegularExpression::CaseInsensitiveOption);
+        auto urlIter = urlRegex.globalMatch(userPrompt);
+        QStringList foundUrls;
+        while (urlIter.hasNext()) {
+            foundUrls << urlIter.next().captured(0);
+        }
+
+        if (!foundUrls.isEmpty()) {
+            QString articleUrl;
+            QString gameplayUrl;
+            for (const QString &u : foundUrls) {
+                if (u.contains(QStringLiteral("youtube.com")) || u.contains(QStringLiteral("youtu.be"))) {
+                    if (gameplayUrl.isEmpty()) gameplayUrl = u;
+                } else {
+                    if (articleUrl.isEmpty()) articleUrl = u;
+                }
+            }
+            if (articleUrl.isEmpty() && !foundUrls.isEmpty()) {
+                articleUrl = foundUrls.first();
+            }
+            const QString format = (pLower.contains(QStringLiteral("vertical")) || pLower.contains(QStringLiteral("tiktok")) || pLower.contains(QStringLiteral("shorts")) || pLower.contains(QStringLiteral("9:16"))) ? QStringLiteral("9:16") : QStringLiteral("16:9");
+            startHardModeProduction(articleUrl, gameplayUrl, QStringLiteral("omnivoice"), QStringLiteral("pt"), format);
             return;
         }
     }
@@ -1227,3 +1274,232 @@ void AiAgentController::generateOmniFlash(const QString &prompt, const QString &
                             QStringLiteral("--aspect"), aspectRatio,
                             QStringLiteral("-o"), outFile});
 }
+
+void AiAgentController::startHardModeProduction(const QString &articleUrlOrText,
+                                                 const QString &gameplayUrlOrPath,
+                                                 const QString &voiceEngine,
+                                                 const QString &lang,
+                                                 const QString &aspectRatio)
+{
+    if (articleUrlOrText.trimmed().isEmpty()) {
+        appendChatMessage(QStringLiteral("assistant"),
+                          tr("⚠️ Por favor, informe um link de matéria/notícia ou o tema do vídeo para o Modo Hard."));
+        return;
+    }
+
+    setBusy(true, tr("Modo Hard: Produzindo vídeo completo..."));
+    appendChatMessage(QStringLiteral("assistant"),
+                      tr("⚡ **Iniciando Modo Hard — Produção Autônoma de Vídeo**\n"
+                         "📰 **Fonte:** %1\n"
+                         "🎮 **Gameplay:** %2\n"
+                         "🎙️ **Voz:** %3 (%4)\n"
+                         "📐 **Formato:** %5\n\n"
+                         "Acompanhe o progresso em tempo real...")
+                          .arg(articleUrlOrText)
+                          .arg(gameplayUrlOrPath.isEmpty() ? tr("Busca automática no YouTube / Local") : gameplayUrlOrPath)
+                          .arg(voiceEngine == QStringLiteral("omnivoice") ? tr("Voz DLuz (OmniVoice CUDA RTX 2060)") : tr("Edge-TTS Neural"))
+                          .arg(lang.toUpper())
+                          .arg(aspectRatio));
+
+    auto *proc = new QProcess(this);
+    setupSilentProcess(proc);
+
+    QString script = QCoreApplication::applicationDirPath() + QStringLiteral("/scripts/dluz_auto_producer.py");
+    if (!QFile::exists(script)) {
+        script = QStringLiteral("h:/Editor dluz/scripts/dluz_auto_producer.py");
+    }
+    if (!QFile::exists(script)) {
+        script = QStringLiteral("D:/DluzEditorSource/scripts/dluz_auto_producer.py");
+    }
+
+    QStringList args{
+        script,
+        QStringLiteral("--article"), articleUrlOrText.trimmed(),
+        QStringLiteral("--voice-engine"), voiceEngine,
+        QStringLiteral("--lang"), lang,
+        QStringLiteral("--format"), aspectRatio,
+        QStringLiteral("--provider"), m_provider
+    };
+
+    if (!gameplayUrlOrPath.trimmed().isEmpty()) {
+        args << QStringLiteral("--gameplay") << gameplayUrlOrPath.trimmed();
+    }
+
+    QString apiKey;
+    if (m_provider == QStringLiteral("gemini")) apiKey = m_geminiKey;
+    else if (m_provider == QStringLiteral("openrouter")) apiKey = m_openrouterKey;
+    else if (m_provider == QStringLiteral("groq")) apiKey = m_groqKey;
+    else if (m_provider == QStringLiteral("opencode")) apiKey = m_opencodeKey;
+
+    if (!apiKey.isEmpty()) {
+        args << QStringLiteral("--api-key") << apiKey;
+    }
+    if (!m_model.isEmpty()) {
+        args << QStringLiteral("--model") << m_model;
+    }
+
+    auto fullOutput = std::make_shared<QString>();
+
+    connect(proc, &QProcess::readyReadStandardOutput, this, [this, proc, fullOutput]() {
+        const QString out = QString::fromUtf8(proc->readAllStandardOutput());
+        fullOutput->append(out);
+        const QStringList lines = out.split(QLatin1Char('\n'));
+        for (const QString &line : lines) {
+            const QString trimmed = line.trimmed();
+            if (trimmed.startsWith(QStringLiteral("PROGRESS:"))) {
+                const QString payload = trimmed.mid(9);
+                const int sep = payload.indexOf(QLatin1Char('|'));
+                if (sep != -1) {
+                    const int pct = payload.left(sep).toInt();
+                    const QString status = payload.mid(sep + 1);
+                    emit hardModeProgress(pct, status);
+                    this->setBusy(true, QStringLiteral("[%1%] %2").arg(pct).arg(status));
+                }
+            }
+        }
+    });
+
+    connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc, fullOutput](int exitCode, QProcess::ExitStatus exitStatus) {
+        Q_UNUSED(exitStatus);
+        fullOutput->append(QString::fromUtf8(proc->readAllStandardOutput()));
+        const QString stderrStr = QString::fromUtf8(proc->readAllStandardError());
+        proc->deleteLater();
+        this->setBusy(false);
+
+        QString manifestFile;
+        const QStringList lines = fullOutput->split(QLatin1Char('\n'));
+        for (const QString &line : lines) {
+            const QString trimmed = line.trimmed();
+            if (trimmed.startsWith(QStringLiteral("TIMELINE_MANIFEST:"))) {
+                manifestFile = trimmed.mid(18).trimmed();
+            }
+        }
+
+        if (exitCode == 0 && !manifestFile.isEmpty() && QFile::exists(manifestFile)) {
+            applyTimelineManifest(manifestFile);
+        } else {
+            const QString err = stderrStr.isEmpty() ? *fullOutput : stderrStr;
+            appendChatMessage(QStringLiteral("assistant"),
+                              tr("❌ Falha na produção do Modo Hard:\n%1").arg(err));
+            emit hardModeFinished(false, QString(), err);
+        }
+    });
+
+    QString pythonExe = QStandardPaths::findExecutable(QStringLiteral("python"));
+    if (pythonExe.isEmpty() || !QFile::exists(pythonExe)) {
+        pythonExe = QStringLiteral("C:/Python314/python.exe");
+    }
+
+    proc->start(pythonExe, args);
+}
+
+bool AiAgentController::applyTimelineManifest(const QString &manifestPath)
+{
+    if (!m_controller)
+        return false;
+
+    QFile f(manifestPath);
+    if (!f.open(QIODevice::ReadOnly)) {
+        appendChatMessage(QStringLiteral("assistant"),
+                          tr("❌ Erro ao abrir manifesto da timeline: %1").arg(manifestPath));
+        return false;
+    }
+
+    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+    f.close();
+
+    if (!doc.isObject()) {
+        appendChatMessage(QStringLiteral("assistant"),
+                          tr("❌ Formato inválido do manifesto da timeline."));
+        return false;
+    }
+
+    const QJsonObject root = doc.object();
+    const QString projectName = root.value(QStringLiteral("project_name")).toString();
+    const QJsonArray tracks = root.value(QStringLiteral("tracks")).toArray();
+    const QString subtitlesPath = root.value(QStringLiteral("subtitles")).toString();
+
+    auto *proj = m_controller->project();
+    if (!proj)
+        return false;
+
+    // Garante que existam pelo menos 2 trilhas de vídeo e 2 de áudio
+    auto countTracksOfType = [proj](drift::TrackType tType) -> int {
+        int c = 0;
+        for (const auto &t : proj->tracks()) {
+            if (t.type == tType) c++;
+        }
+        return c;
+    };
+
+    while (countTracksOfType(drift::TrackType::Video) < 2) {
+        m_controller->addTrack(QStringLiteral("video"));
+    }
+    while (countTracksOfType(drift::TrackType::Audio) < 2) {
+        m_controller->addTrack(QStringLiteral("audio"));
+    }
+
+    QList<int> videoTrackIndices;
+    QList<int> audioTrackIndices;
+    for (int i = 0; i < proj->tracks().size(); ++i) {
+        if (proj->tracks().at(i).type == drift::TrackType::Video) {
+            videoTrackIndices.append(i);
+        } else if (proj->tracks().at(i).type == drift::TrackType::Audio) {
+            audioTrackIndices.append(i);
+        }
+    }
+
+    // No Dluz Film, a trilha de menor índice renderiza por cima (topo = overlays)
+    int vOverlayTrack = videoTrackIndices.value(0);
+    int vGameplayTrack = videoTrackIndices.value(videoTrackIndices.size() > 1 ? 1 : 0);
+    int aVoiceTrack = audioTrackIndices.value(0);
+    int aBgmTrack = audioTrackIndices.value(audioTrackIndices.size() > 1 ? 1 : 0);
+
+    for (const auto &tVal : tracks) {
+        const QJsonObject tObj = tVal.toObject();
+        const int manifestTrackIdx = tObj.value(QStringLiteral("index")).toInt();
+        const QString tType = tObj.value(QStringLiteral("type")).toString();
+        const QJsonArray clips = tObj.value(QStringLiteral("clips")).toArray();
+
+        int targetTrack = -1;
+        if (manifestTrackIdx == 0) targetTrack = vGameplayTrack;
+        else if (manifestTrackIdx == 1) targetTrack = vOverlayTrack;
+        else if (manifestTrackIdx == 2) targetTrack = aVoiceTrack;
+        else if (manifestTrackIdx == 3) targetTrack = aBgmTrack;
+        else targetTrack = (tType == QStringLiteral("video")) ? vGameplayTrack : aVoiceTrack;
+
+        for (const auto &cVal : clips) {
+            const QJsonObject cObj = cVal.toObject();
+            const QString clipPath = cObj.value(QStringLiteral("path")).toString();
+            const double atSec = cObj.value(QStringLiteral("timeline_start")).toDouble();
+            const QString effect = cObj.value(QStringLiteral("effect")).toString();
+
+            if (!clipPath.isEmpty() && QFile::exists(clipPath)) {
+                m_controller->importMediaToTimeline(clipPath, atSec, targetTrack, effect);
+            }
+        }
+    }
+
+    // Importa legendas se o arquivo existir
+    if (!subtitlesPath.isEmpty() && QFile::exists(subtitlesPath)) {
+        m_controller->importSubtitleFile(QUrl::fromLocalFile(subtitlesPath), 0.0);
+    }
+
+    // Posiciona o cursor no início
+    m_controller->setPlayheadSeconds(0.0);
+
+    appendChatMessage(QStringLiteral("assistant"),
+                      tr("🎉 **Modo Hard Concluído com Sucesso!**\n"
+                         "Todos os elementos foram sincronizados e injetados na timeline:\n"
+                         "- 🎮 **Trilha V1:** Gameplay dinamicamente fatiada com cortes sequenciados\n"
+                         "- 🎬 **Trilha V2:** Overlays HyperFrames (Chroma Key ativo sem fundo verde)\n"
+                         "- 🎙️ **Trilha A1:** Locução oficial com voz clonada do DLuz (OmniVoice)\n"
+                         "- 🎵 **Trilha A2:** Trilha sonora (BGM) ducked\n"
+                         "- 📝 **Legendas:** Sincronizadas na trilha de legendas\n\n"
+                         "O projeto está pronto! Dê Play na barra de espaço para conferir, refinar os cortes e exportar."));
+
+    emit hardModeFinished(true, manifestPath, tr("Vídeo completo montado na timeline com sucesso!"));
+    return true;
+}
+

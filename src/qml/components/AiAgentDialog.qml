@@ -74,32 +74,31 @@ ThemedDialog {
                     }
                 }
 
-                // Aba 1: Provedores e Modelos
+                // Aba 1: ⚡ Modo Hard (Produção por Link)
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     radius: Theme.radiusSm - 1
                     color: root.activeTab === 1 ? Theme.panelAccent : "transparent"
                     border.width: root.activeTab === 1 ? Theme.borderWidth : 0
-                    border.color: root.activeTab === 1 ? Theme.panelBorder : "transparent"
+                    border.color: root.activeTab === 1 ? "#f59e0b" : "transparent"
 
                     Row {
                         anchors.centerIn: parent
                         spacing: Theme.spacingSm
 
-                        IconGlyph {
-                            glyph: Theme.icons.settings
-                            iconSize: Theme.iconSizeBase
-                            iconColor: root.activeTab === 1 ? Theme.primary : Theme.mutedForeground
+                        Text {
+                            text: "⚡"
+                            font.pixelSize: 14
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
                         Text {
-                            text: qsTr("Modelos & Provedores")
+                            text: qsTr("Modo Hard (Por Link)")
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSm
                             font.weight: root.activeTab === 1 ? Font.DemiBold : Font.Normal
-                            color: root.activeTab === 1 ? Theme.panelForeground : Theme.mutedForeground
+                            color: root.activeTab === 1 ? "#f59e0b" : Theme.mutedForeground
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -108,6 +107,43 @@ ThemedDialog {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.activeTab = 1
+                    }
+                }
+
+                // Aba 2: Provedores e Modelos
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    radius: Theme.radiusSm - 1
+                    color: root.activeTab === 2 ? Theme.panelAccent : "transparent"
+                    border.width: root.activeTab === 2 ? Theme.borderWidth : 0
+                    border.color: root.activeTab === 2 ? Theme.panelBorder : "transparent"
+
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: Theme.spacingSm
+
+                        IconGlyph {
+                            glyph: Theme.icons.settings
+                            iconSize: Theme.iconSizeBase
+                            iconColor: root.activeTab === 2 ? Theme.primary : Theme.mutedForeground
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Text {
+                            text: qsTr("Modelos & Provedores")
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSm
+                            font.weight: root.activeTab === 2 ? Font.DemiBold : Font.Normal
+                            color: root.activeTab === 2 ? Theme.panelForeground : Theme.mutedForeground
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.activeTab = 2
                     }
                 }
             }
@@ -287,6 +323,74 @@ ThemedDialog {
                                 font.pixelSize: Theme.fontSizeSm
                                 color: Theme.mutedForeground
                                 wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        // Card Destaque Modo Hard (Full Width)
+                        Rectangle {
+                            width: 696
+                            height: 56
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            radius: Theme.radiusSm
+                            color: hardModeBannerMouse.containsMouse ? Qt.rgba(0.96, 0.62, 0.07, 0.15) : Qt.rgba(0.96, 0.62, 0.07, 0.08)
+                            border.width: 1.5
+                            border.color: hardModeBannerMouse.containsMouse ? "#f59e0b" : Qt.rgba(0.96, 0.62, 0.07, 0.4)
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: Theme.spacingMd
+                                spacing: Theme.spacingMd
+
+                                Text {
+                                    text: "⚡"
+                                    font.pixelSize: 22
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
+
+                                Column {
+                                    Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignVCenter
+                                    spacing: 2
+                                    Text {
+                                        text: qsTr("Modo Hard: Produzir Vídeo Completo por Link")
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSm
+                                        font.weight: Font.Bold
+                                        color: "#f59e0b"
+                                    }
+                                    Text {
+                                        text: qsTr("Scraping da notícia + Roteiro IA + Gameplay 1080p60 + OmniVoice CUDA + Overlays + Legendas na timeline")
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeTiny
+                                        color: Theme.mutedForeground
+                                        elide: Text.ElideRight
+                                    }
+                                }
+
+                                Rectangle {
+                                    width: 80
+                                    height: 28
+                                    radius: 14
+                                    color: "#f59e0b"
+                                    Layout.alignment: Qt.AlignVCenter
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: qsTr("Abrir ➔")
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeTiny
+                                        font.weight: Font.Bold
+                                        color: "#121216"
+                                    }
+                                }
+                            }
+
+                            MouseArea {
+                                id: hardModeBannerMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.activeTab = 1
                             }
                         }
 
@@ -823,12 +927,448 @@ ThemedDialog {
         }
 
         // ====================================================================
-        // ABA 1: MODELOS & PROVEDORES DE IA
+        // ABA 1: ⚡ MODO HARD — PRODUÇÃO TOTAL DE VÍDEO POR LINK
+        // ====================================================================
+        Column {
+            id: hardModeTab
+            width: parent.width
+            spacing: Theme.spacingMd
+            visible: root.activeTab === 1
+
+            property string selectedVoice: "omnivoice"
+            property string selectedFormat: "16:9"
+            property int livePercent: 0
+            property string liveStatus: ""
+
+            Connections {
+                target: AiAgent
+                function onHardModeProgress(percent, statusText) {
+                    hardModeTab.livePercent = percent
+                    hardModeTab.liveStatus = statusText
+                }
+                function onHardModeFinished(success, manifestPath, message) {
+                    if (success) {
+                        hardModeTab.livePercent = 100
+                        hardModeTab.liveStatus = qsTr("Vídeo montado na timeline com sucesso!")
+                    }
+                }
+            }
+
+            // Banner Hero Google Stitch
+            Rectangle {
+                width: parent.width
+                height: 64
+                radius: Theme.radiusMd
+                color: Qt.rgba(0.96, 0.62, 0.07, 0.1)
+                border.width: 1.5
+                border.color: Qt.rgba(0.96, 0.62, 0.07, 0.35)
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingMd
+                    spacing: Theme.spacingMd
+
+                    Rectangle {
+                        width: 40
+                        height: 40
+                        radius: 20
+                        color: "#f59e0b"
+                        Layout.alignment: Qt.AlignVCenter
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "⚡"
+                            font.pixelSize: 20
+                        }
+                    }
+
+                    Column {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignVCenter
+                        spacing: 2
+
+                        Text {
+                            text: qsTr("Modo Hard: Produção Autônoma de Vídeo por Link")
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSm
+                            font.weight: Font.Bold
+                            color: "#f59e0b"
+                        }
+
+                        Text {
+                            text: qsTr("Gera roteiro com 'Fala melhores, beleza?', gameplay 1080p60, voz OmniVoice CUDA (RTX 2060), overlays HyperFrames e legendas sincronizadas.")
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeTiny
+                            color: Theme.mutedForeground
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+                }
+            }
+
+            // Card Principal do Formulário
+            Rectangle {
+                width: parent.width
+                implicitHeight: formLayout.implicitHeight + Theme.spacingLg * 2
+                radius: Theme.radiusMd
+                color: Theme.panelBackground
+                border.width: Theme.borderWidth
+                border.color: Theme.panelBorder
+
+                ColumnLayout {
+                    id: formLayout
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingLg
+                    spacing: Theme.spacingMd
+
+                    // Campo 1: Link da Matéria ou Notícia
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+
+                        Text {
+                            text: qsTr("📰 Link da Matéria / Artigo ou Tema do Vídeo *")
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeXs
+                            font.weight: Font.DemiBold
+                            color: Theme.foreground
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 38
+                            radius: Theme.radiusSm
+                            color: Theme.appBackground
+                            border.width: Theme.borderWidth
+                            border.color: articleField.activeFocus ? "#f59e0b" : Theme.panelBorder
+
+                            TextInput {
+                                id: articleField
+                                anchors.fill: parent
+                                anchors.margins: 9
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeSm
+                                color: Theme.foreground
+                                clip: true
+                                selectByMouse: true
+
+                                Text {
+                                    anchors.fill: parent
+                                    visible: !articleField.text && !articleField.activeFocus
+                                    text: qsTr("Cole a URL da matéria (ex: https://dluzgames.com.br/...) ou texto da notícia")
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSm
+                                    color: Theme.mutedForeground
+                                }
+                            }
+                        }
+                    }
+
+                    // Campo 2: Link da Gameplay
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+
+                        Text {
+                            text: qsTr("🎮 Link da Gameplay no YouTube (ou arquivo local)")
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeXs
+                            font.weight: Font.DemiBold
+                            color: Theme.foreground
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 38
+                            radius: Theme.radiusSm
+                            color: Theme.appBackground
+                            border.width: Theme.borderWidth
+                            border.color: gameplayField.activeFocus ? "#f59e0b" : Theme.panelBorder
+
+                            TextInput {
+                                id: gameplayField
+                                anchors.fill: parent
+                                anchors.margins: 9
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeSm
+                                color: Theme.foreground
+                                clip: true
+                                selectByMouse: true
+
+                                Text {
+                                    anchors.fill: parent
+                                    visible: !gameplayField.text && !gameplayField.activeFocus
+                                    text: qsTr("URL do YouTube (ex: https://youtube.com/watch?v=...) ou deixe em branco para busca automática")
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSm
+                                    color: Theme.mutedForeground
+                                }
+                            }
+                        }
+                    }
+
+                    // Seletores lado a lado
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacingMd
+
+                        // Seletor de Voz
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+
+                            Text {
+                                text: qsTr("🎙️ Motor de Voz")
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeXs
+                                font.weight: Font.DemiBold
+                                color: Theme.foreground
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacingSm
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 34
+                                    radius: Theme.radiusSm
+                                    color: hardModeTab.selectedVoice === "omnivoice" ? Theme.panelAccent : Theme.appBackground
+                                    border.width: hardModeTab.selectedVoice === "omnivoice" ? 1.5 : 1
+                                    border.color: hardModeTab.selectedVoice === "omnivoice" ? "#f59e0b" : Theme.panelBorder
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: qsTr("🎙️ Voz DLuz (OmniVoice CUDA)")
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeTiny
+                                        font.weight: hardModeTab.selectedVoice === "omnivoice" ? Font.DemiBold : Font.Normal
+                                        color: hardModeTab.selectedVoice === "omnivoice" ? "#f59e0b" : Theme.mutedForeground
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: hardModeTab.selectedVoice = "omnivoice"
+                                    }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 34
+                                    radius: Theme.radiusSm
+                                    color: hardModeTab.selectedVoice === "edge_tts" ? Theme.panelAccent : Theme.appBackground
+                                    border.width: hardModeTab.selectedVoice === "edge_tts" ? 1.5 : 1
+                                    border.color: hardModeTab.selectedVoice === "edge_tts" ? "#f59e0b" : Theme.panelBorder
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: qsTr("⚡ Edge-TTS Neural")
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeTiny
+                                        font.weight: hardModeTab.selectedVoice === "edge_tts" ? Font.DemiBold : Font.Normal
+                                        color: hardModeTab.selectedVoice === "edge_tts" ? "#f59e0b" : Theme.mutedForeground
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: hardModeTab.selectedVoice = "edge_tts"
+                                    }
+                                }
+                            }
+                        }
+
+                        // Seletor de Formato
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+
+                            Text {
+                                text: qsTr("📐 Formato do Vídeo")
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeXs
+                                font.weight: Font.DemiBold
+                                color: Theme.foreground
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacingSm
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 34
+                                    radius: Theme.radiusSm
+                                    color: hardModeTab.selectedFormat === "16:9" ? Theme.panelAccent : Theme.appBackground
+                                    border.width: hardModeTab.selectedFormat === "16:9" ? 1.5 : 1
+                                    border.color: hardModeTab.selectedFormat === "16:9" ? Theme.primary : Theme.panelBorder
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: qsTr("📺 16:9 (YouTube)")
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeTiny
+                                        font.weight: hardModeTab.selectedFormat === "16:9" ? Font.DemiBold : Font.Normal
+                                        color: hardModeTab.selectedFormat === "16:9" ? Theme.primary : Theme.mutedForeground
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: hardModeTab.selectedFormat = "16:9"
+                                    }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 34
+                                    radius: Theme.radiusSm
+                                    color: hardModeTab.selectedFormat === "9:16" ? Theme.panelAccent : Theme.appBackground
+                                    border.width: hardModeTab.selectedFormat === "9:16" ? 1.5 : 1
+                                    border.color: hardModeTab.selectedFormat === "9:16" ? Theme.primary : Theme.panelBorder
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: qsTr("📱 9:16 (TikTok/Shorts)")
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeTiny
+                                        font.weight: hardModeTab.selectedFormat === "9:16" ? Font.DemiBold : Font.Normal
+                                        color: hardModeTab.selectedFormat === "9:16" ? Theme.primary : Theme.mutedForeground
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: hardModeTab.selectedFormat = "9:16"
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Botão de Disparo Principal
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 44
+                        radius: Theme.radiusSm
+                        color: {
+                            if (AiAgent.isBusy || !articleField.text.trim()) return Theme.panelAccent
+                            return launchMouse.containsMouse ? "#d97706" : "#f59e0b"
+                        }
+                        border.width: 1
+                        border.color: Qt.darker(color, 1.2)
+
+                        Row {
+                            anchors.centerIn: parent
+                            spacing: Theme.spacingSm
+
+                            Text {
+                                text: AiAgent.isBusy ? "⏳" : "🚀"
+                                font.pixelSize: 16
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            Text {
+                                text: AiAgent.isBusy ? qsTr("Produzindo Vídeo... Aguarde...") : qsTr("Iniciar Produção Autônoma & Injetar na Timeline")
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeSm
+                                font.weight: Font.Bold
+                                color: (AiAgent.isBusy || !articleField.text.trim()) ? Theme.mutedForeground : "#121216"
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        MouseArea {
+                            id: launchMouse
+                            anchors.fill: parent
+                            enabled: !AiAgent.isBusy && articleField.text.trim().length > 0
+                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            hoverEnabled: true
+                            onClicked: {
+                                AiAgent.startHardModeProduction(
+                                    articleField.text.trim(),
+                                    gameplayField.text.trim(),
+                                    hardModeTab.selectedVoice,
+                                    "pt",
+                                    hardModeTab.selectedFormat
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Card de Progresso em Tempo Real
+            Rectangle {
+                width: parent.width
+                height: 72
+                radius: Theme.radiusMd
+                color: Theme.panelAccent
+                border.width: Theme.borderWidth
+                border.color: Theme.panelBorder
+                visible: AiAgent.isBusy || hardModeTab.livePercent > 0
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingMd
+                    spacing: 4
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Text {
+                            text: qsTr("Status da Produção:")
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeXs
+                            font.weight: Font.DemiBold
+                            color: Theme.foreground
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        Text {
+                            text: hardModeTab.livePercent + "%"
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeXs
+                            font.weight: Font.Bold
+                            color: "#f59e0b"
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 6
+                        radius: 3
+                        color: Theme.appBackground
+
+                        Rectangle {
+                            height: parent.height
+                            width: parent.width * (Math.min(100, Math.max(0, hardModeTab.livePercent)) / 100.0)
+                            radius: 3
+                            color: "#f59e0b"
+                        }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: hardModeTab.liveStatus.length > 0 ? hardModeTab.liveStatus : AiAgent.statusMessage
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeTiny
+                        color: Theme.mutedForeground
+                        elide: Text.ElideRight
+                    }
+                }
+            }
+        }
+
+        // ====================================================================
+        // ABA 2: MODELOS & PROVEDORES DE IA
         // ====================================================================
         Column {
             width: parent.width
             spacing: Theme.spacingLg
-            visible: root.activeTab === 1
+            visible: root.activeTab === 2
 
             ThemedLabel {
                 width: parent.width

@@ -100,6 +100,14 @@ public:
     // Quick Silence Remover trigger
     Q_INVOKABLE void runSilenceRemoval(double threshold = -30.0, double minDuration = 0.3, double padding = 0.08);
 
+    // Hard Mode - Autonomous Video Production from Link/Article
+    Q_INVOKABLE void startHardModeProduction(const QString &articleUrlOrText,
+                                             const QString &gameplayUrlOrPath = QString(),
+                                             const QString &voiceEngine = QStringLiteral("omnivoice"),
+                                             const QString &lang = QStringLiteral("pt"),
+                                             const QString &aspectRatio = QStringLiteral("16:9"));
+    Q_INVOKABLE bool applyTimelineManifest(const QString &manifestPath);
+
 signals:
     void providerChanged();
     void keysChanged();
@@ -114,6 +122,8 @@ signals:
     void voiceSynthesisFinished(bool success, const QString &outputPath, const QString &message);
     void videoDubbingFinished(bool success, const QString &videoPath, const QString &srtPath, const QString &message);
     void omniFlashFinished(bool success, const QString &outputPath, const QString &message);
+    void hardModeProgress(int percent, const QString &statusText);
+    void hardModeFinished(bool success, const QString &manifestPath, const QString &message);
 
 private slots:
     void handleAiReply();
