@@ -229,7 +229,7 @@ ThemedDialog {
                 Row {
                     spacing: Theme.spacingXs
                     visible: AiAgent.isBusy
-                    anchors.verticalCenter: parent.verticalCenter
+                    Layout.alignment: Qt.AlignVCenter
 
                     IconGlyph {
                         glyph: Theme.icons.spinner

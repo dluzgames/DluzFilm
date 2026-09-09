@@ -211,6 +211,10 @@ QtObject {
     // --- Colors: shared semantic (identical in both themes) -----------------------
     readonly property color primary: "#E50914"
     readonly property color primaryForeground: "#ffffff"
+    readonly property color primarySurface: darkMode ? "#2a1215" : "#fee2e2"
+    readonly property color inputBackground: darkMode ? "#141414" : "#f3f4f6"
+    readonly property color surface: panelBackground
+    readonly property color surfaceHover: panelAccent
     // `primary` as a *foreground* on a panel surface. Dark mode keeps the red (5.1:1);
     // light mode uses the darkened crimson tone (5.4:1) for strong contrast.
     readonly property color accentOnPanel: darkMode ? primary : "#b91c1c"

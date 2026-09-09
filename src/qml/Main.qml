@@ -99,6 +99,10 @@ ApplicationWindow {
         // maximized never appears at its windowed size on the way there.
         window.visibility = LayoutMemory.savedWindowMaximized()
                             ? Window.Maximized : Window.Windowed
+        window.visible = true
+        window.show()
+        window.raise()
+        window.requestActivate()
         // A launch nobody resizes never emits a geometry change, so the sampler that
         // hangs off those signals would never run and the session would save nothing.
         geometrySettleTimer.restart()
@@ -518,10 +522,8 @@ ApplicationWindow {
 
     Component.onCompleted: {
         window.restoreWindowGeometry()
-        window.beginStartupProject()
-        // Last: the window is placed by now, and the startup flow keeps the ordering
-        // it had when the window was shown at the end of completion.
         window.showRestored()
+        window.beginStartupProject()
     }
 
     function beginStartupProject() {
