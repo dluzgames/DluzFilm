@@ -504,10 +504,18 @@ Item {
                      || clipItem.trackType === "shape"
             width: parent.width
             height: clipItem.headerBandHeight
-            color: clipItem.trackType === "video"
-                   ? (clipMouse.containsMouse || clipItem.lifted ? Qt.lighter(Theme.clipVideo, 1.15) : Theme.clipVideo)
-                   : Theme.scrimColor
+            color: {
+                if (clipItem.selected)
+                    return (clipMouse.containsMouse || clipItem.lifted) ? Qt.lighter(Theme.primary, 1.15) : Theme.primary
+                if (clipItem.trackType === "video")
+                    return (clipMouse.containsMouse || clipItem.lifted) ? Qt.lighter(Theme.clipVideo, 1.15) : Theme.clipVideo
+                return Theme.scrimColor
+            }
             z: 1
+
+            Behavior on color {
+                ColorAnimation { duration: Theme.durationFast; easing.type: Theme.easing }
+            }
 
             // Just the name. The effect stack used to be listed on a second line here, but it
             // now lives on the clip's adjustment lane, which shows it in the row above — two
@@ -1047,6 +1055,24 @@ Item {
                 onTriggered: {
                     if (typeof clipItem.panel.requestEditWithOmniFlash === "function")
                         clipItem.panel.requestEditWithOmniFlash(clipItem.trackIndex, clipItem.clipIndex)
+                }
+            }
+            ThemedMenuItem {
+                text: qsTr("Dublar com OmniVoice…")
+                icon.name: Theme.icons.mic
+                visible: clipItem.trackType === "video" && clipItem.clipData.kind !== "adjustment"
+                onTriggered: {
+                    if (typeof clipItem.panel.requestDubClip === "function")
+                        clipItem.panel.requestDubClip(clipItem.trackIndex, clipItem.clipIndex)
+                }
+            }
+            ThemedMenuItem {
+                text: qsTr("Remover Silêncios…")
+                icon.name: Theme.icons.scissors
+                visible: (clipItem.trackType === "video" || clipItem.trackType === "audio") && clipItem.clipData.kind !== "adjustment"
+                onTriggered: {
+                    if (typeof clipItem.panel.requestRemoveSilence === "function")
+                        clipItem.panel.requestRemoveSilence(clipItem.trackIndex, clipItem.clipIndex)
                 }
             }
             ThemedMenuSeparator { }

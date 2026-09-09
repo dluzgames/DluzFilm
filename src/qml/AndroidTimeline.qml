@@ -91,8 +91,33 @@ Item {
         omniFlashClipDialog.openForClip(trackIndex, clipIndex, clips[clipIndex])
     }
 
+    function requestDubClip(trackIndex, clipIndex) {
+        if (trackIndex < 0 || clipIndex < 0 || trackIndex >= root.tracks.length)
+            return
+        const clips = root.tracks[trackIndex].clips || []
+        if (clipIndex >= clips.length)
+            return
+        EditorState.selectClip(trackIndex, clipIndex)
+        omniStudioDialog.openForClip(trackIndex, clipIndex, clips[clipIndex])
+    }
+
+    function requestRemoveSilence(trackIndex, clipIndex) {
+        if (trackIndex >= 0 && clipIndex >= 0) {
+            EditorState.selectClip(trackIndex, clipIndex)
+        }
+        silenceRemoverDialog.openForClip(trackIndex, clipIndex)
+    }
+
     OmniFlashClipDialog {
         id: omniFlashClipDialog
+    }
+
+    SilenceRemoverDialog {
+        id: silenceRemoverDialog
+    }
+
+    OmniStudioDialog {
+        id: omniStudioDialog
     }
 
     function requestSaveEffectPreset(trackIndex, clipIndex) {

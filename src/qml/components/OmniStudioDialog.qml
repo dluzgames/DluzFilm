@@ -20,6 +20,21 @@ ThemedDialog {
         if (selected && selected.length > 0) {
             videoPathField.text = selected
         }
+        activeTab = 0
+        open()
+    }
+
+    function openForClip(trackIndex, clipIndex, clip) {
+        activeTab = 0
+        const path = clip ? (clip.path || "") : ""
+        if (path && path.length > 0) {
+            videoPathField.text = path
+        } else {
+            const selected = AiAgent.selectedVideoClipPath()
+            if (selected && selected.length > 0) {
+                videoPathField.text = selected
+            }
+        }
         open()
     }
 

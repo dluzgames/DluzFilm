@@ -752,6 +752,23 @@ PanelFrame {
         omniFlashClipDialog.openForClip(trackIndex, clipIndex, clips[clipIndex])
     }
 
+    function requestDubClip(trackIndex, clipIndex) {
+        if (trackIndex < 0 || clipIndex < 0 || trackIndex >= root.tracks.length)
+            return
+        const clips = root.tracks[trackIndex].clips || []
+        if (clipIndex >= clips.length)
+            return
+        EditorState.selectClip(trackIndex, clipIndex)
+        omniStudioDialog.openForClip(trackIndex, clipIndex, clips[clipIndex])
+    }
+
+    function requestRemoveSilence(trackIndex, clipIndex) {
+        if (trackIndex >= 0 && clipIndex >= 0) {
+            EditorState.selectClip(trackIndex, clipIndex)
+        }
+        silenceRemoverDialog.openForClip(trackIndex, clipIndex)
+    }
+
     // Seeking while the engine clock is running lands ahead of the click: the
     // sink's processedUSecs is cumulative from play(), so the visible playhead
     // becomes clickTime + elapsed. Pause for the gesture and resume on release.
@@ -2441,5 +2458,13 @@ PanelFrame {
 
     OmniFlashClipDialog {
         id: omniFlashClipDialog
+    }
+
+    SilenceRemoverDialog {
+        id: silenceRemoverDialog
+    }
+
+    OmniStudioDialog {
+        id: omniStudioDialog
     }
 }

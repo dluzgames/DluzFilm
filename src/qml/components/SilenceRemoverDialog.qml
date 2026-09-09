@@ -25,6 +25,13 @@ ThemedDialog {
         open()
     }
 
+    function openForClip(trackIndex, clipIndex) {
+        if (trackIndex >= 0 && clipIndex >= 0) {
+            EditorState.selectClip(trackIndex, clipIndex)
+        }
+        openDialog()
+    }
+
     contentItem: Column {
         id: body
         width: parent ? parent.width : Theme.dialogWidthMd
