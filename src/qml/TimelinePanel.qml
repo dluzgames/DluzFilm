@@ -769,6 +769,16 @@ PanelFrame {
         silenceRemoverDialog.openForClip(trackIndex, clipIndex)
     }
 
+    function requestDynamicSubtitles(trackIndex, clipIndex) {
+        if (trackIndex < 0 || clipIndex < 0 || trackIndex >= root.tracks.length)
+            return
+        const clips = root.tracks[trackIndex].clips || []
+        if (clipIndex >= clips.length)
+            return
+        EditorState.selectClip(trackIndex, clipIndex)
+        dynamicSubtitlesDialog.openForClip(trackIndex, clipIndex, clips[clipIndex])
+    }
+
     // Seeking while the engine clock is running lands ahead of the click: the
     // sink's processedUSecs is cumulative from play(), so the visible playhead
     // becomes clickTime + elapsed. Pause for the gesture and resume on release.
@@ -2466,5 +2476,9 @@ PanelFrame {
 
     OmniStudioDialog {
         id: omniStudioDialog
+    }
+
+    DynamicSubtitlesDialog {
+        id: dynamicSubtitlesDialog
     }
 }

@@ -108,6 +108,16 @@ public:
     // Quick Silence Remover trigger
     Q_INVOKABLE void runSilenceRemoval(double threshold = -30.0, double minDuration = 0.3, double padding = 0.08);
 
+    // Dynamic Subtitles Generation (Word-by-word / MrBeast style)
+    Q_INVOKABLE void generateDynamicSubtitles(int trackIndex, int clipIndex,
+                                              const QString &clipPath,
+                                              double inPoint, double duration,
+                                              double timelineStart,
+                                              const QString &lang = QStringLiteral("pt"),
+                                              int wordsPerCue = 1,
+                                              bool uppercase = true,
+                                              const QString &presetId = QStringLiteral("karaoke-pop"));
+
     // Hard Mode - Autonomous Video Production from Link/Article
     Q_INVOKABLE void startHardModeProduction(const QString &articleUrlOrText,
                                              const QString &gameplayUrlOrPath = QString(),
@@ -132,6 +142,8 @@ signals:
     void omniFlashFinished(bool success, const QString &outputPath, const QString &message);
     void omniFlashClipEditProgress(int percent, const QString &statusText);
     void omniFlashClipEditFinished(bool success, const QString &outputPath, const QString &message);
+    void dynamicSubtitlesProgress(int percent, const QString &statusText);
+    void dynamicSubtitlesFinished(bool success, const QString &srtPath, const QString &message);
     void hardModeProgress(int percent, const QString &statusText);
     void hardModeFinished(bool success, const QString &manifestPath, const QString &message);
 

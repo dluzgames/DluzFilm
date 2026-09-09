@@ -1395,6 +1395,130 @@ void AiAgentController::editClipWithOmniFlash(int trackIndex, int clipIndex,
     proc->start(pythonExe, args);
 }
 
+void AiAgentController::generateDynamicSubtitles(int trackIndex, int clipIndex,
+                                                const QString &clipPath,
+                                                double inPoint, double duration,
+                                                double timelineStart,
+                                                const QString &lang,
+                                                int wordsPerCue,
+                                                bool uppercase,
+                                                const QString &presetId)
+{
+    Q_UNUSED(trackIndex);
+    Q_UNUSED(clipIndex);
+
+    if (clipPath.trimmed().isEmpty() || !QFile::exists(clipPath)) {
+        appendChatMessage(QStringLiteral("assistant"),
+                          tr("❌ Erro: Arquivo do clipe não encontrado:\n%1").arg(clipPath));
+        emit dynamicSubtitlesFinished(false, QString(), tr("Arquivo de mídia inválido"));
+        return;
+    }
+
+    setBusy(true, tr("Gerando legendas dinâmicas estilo MrBeast com Whisper IA..."));
+    emit dynamicSubtitlesProgress(5, tr("Iniciando fatiamento de áudio com FFmpeg..."));
+
+    auto *proc = new QProcess(this);
+    setupSilentProcess(proc);
+
+    QString script = QCoreApplication::applicationDirPath() + QStringLiteral("/scripts/dynamic_subtitles_generator.py");
+    if (!QFile::exists(script)) {
+        script = QStringLiteral("h:/Editor dluz/scripts/dynamic_subtitles_generator.py");
+    }
+    if (!QFile::exists(script)) {
+        script = QStringLiteral("D:/DluzEditorSource/scripts/dynamic_subtitles_generator.py");
+    }
+
+    QStringList args{
+        script,
+        QStringLiteral("--video"), clipPath,
+        QStringLiteral("--in-point"), QString::number(inPoint, 'f', 3),
+        QStringLiteral("--duration"), QString::number(duration, 'f', 3),
+        QStringLiteral("--lang"), lang.isEmpty() ? QStringLiteral("pt") : lang,
+        QStringLiteral("--words-per-cue"), QString::number(wordsPerCue)
+    };
+
+    if (!uppercase) {
+        args << QStringLiteral("--no-uppercase");
+    }
+
+    auto fullOutput = std::make_shared<QString>();
+
+    connect(proc, &QProcess::readyReadStandardOutput, this, [this, proc, fullOutput]() {
+        const QString out = QString::fromUtf8(proc->readAllStandardOutput());
+        fullOutput->append(out);
+        const QStringList lines = out.split(QLatin1Char('\n'));
+        for (const QString &line : lines) {
+            const QString trimmed = line.trimmed();
+            if (trimmed.startsWith(QStringLiteral("PROGRESS:"))) {
+                const QString payload = trimmed.mid(9);
+                const int sep = payload.indexOf(QLatin1Char('|'));
+                if (sep != -1) {
+                    const int pct = payload.left(sep).toInt();
+                    const QString status = payload.mid(sep + 1);
+                    emit dynamicSubtitlesProgress(pct, status);
+                    this->setBusy(true, QStringLiteral("[%1%] %2").arg(pct).arg(status));
+                }
+            }
+        }
+    });
+
+    connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc, fullOutput, timelineStart, presetId](int exitCode, QProcess::ExitStatus exitStatus) {
+        Q_UNUSED(exitStatus);
+        fullOutput->append(QString::fromUtf8(proc->readAllStandardOutput()));
+        const QString stderrStr = QString::fromUtf8(proc->readAllStandardError());
+        proc->deleteLater();
+        this->setBusy(false);
+
+        QString outputSrt;
+        const QStringList lines = fullOutput->split(QLatin1Char('\n'));
+        for (const QString &line : lines) {
+            const QString trimmed = line.trimmed();
+            if (trimmed.startsWith(QStringLiteral("OUTPUT_SRT:"))) {
+                outputSrt = trimmed.mid(11).trimmed();
+            }
+        }
+
+        if (exitCode == 0 && !outputSrt.isEmpty() && QFile::exists(outputSrt)) {
+            bool ok = false;
+            if (this->m_controller) {
+                // Importa na posição exata da timeline onde o clipe começa
+                ok = this->m_controller->importSubtitleFile(QUrl::fromLocalFile(outputSrt), timelineStart);
+                if (ok && !presetId.isEmpty()) {
+                    const int subTrack = this->m_controller->selectedTrack();
+                    const int subClip = this->m_controller->selectedClip();
+                    if (subTrack >= 0 && subClip >= 0) {
+                        this->m_controller->applyTextPreset(subTrack, subClip, presetId);
+                    }
+                }
+            }
+
+            QString successMsg = QObject::tr("✨ Legendas dinâmicas estilo MrBeast geradas com sucesso!\n"
+                                             "📝 Arquivo SRT: %1\n"
+                                             "🎨 Estilo aplicado: %2\n"
+                                             "⏱️ Sincronizadas na posição %3s da timeline!")
+                                     .arg(outputSrt)
+                                     .arg(presetId.isEmpty() ? QStringLiteral("karaoke-pop") : presetId)
+                                     .arg(QString::number(timelineStart, 'f', 2));
+            this->appendChatMessage(QStringLiteral("assistant"), successMsg);
+            emit this->dynamicSubtitlesProgress(100, QObject::tr("Concluído!"));
+            emit this->dynamicSubtitlesFinished(true, outputSrt, QObject::tr("Legendas dinâmicas inseridas na timeline!"));
+        } else {
+            const QString err = stderrStr.isEmpty() ? *fullOutput : stderrStr;
+            this->appendChatMessage(QStringLiteral("assistant"),
+                              tr("❌ Falha na geração das legendas dinâmicas:\n%1").arg(err));
+            emit this->dynamicSubtitlesFinished(false, QString(), err);
+        }
+    });
+
+    QString pythonExe = QStandardPaths::findExecutable(QStringLiteral("python"));
+    if (pythonExe.isEmpty() || !QFile::exists(pythonExe)) {
+        pythonExe = QStringLiteral("C:/Python314/python.exe");
+    }
+
+    proc->start(pythonExe, args);
+}
+
 void AiAgentController::startHardModeProduction(const QString &articleUrlOrText,
                                                  const QString &gameplayUrlOrPath,
                                                  const QString &voiceEngine,

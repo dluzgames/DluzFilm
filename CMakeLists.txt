@@ -825,6 +825,7 @@ qt_add_qml_module(drift
         src/qml/components/OmniFlashDialog.qml
         src/qml/components/OmniFlashClipDialog.qml
         src/qml/components/OmniStudioDialog.qml
+        src/qml/components/DynamicSubtitlesDialog.qml
         src/qml/components/AiAgentDialog.qml
         src/qml/components/VideoSizeDialog.qml
         src/qml/components/VideoSizeControls.qml

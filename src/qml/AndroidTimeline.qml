@@ -108,6 +108,16 @@ Item {
         silenceRemoverDialog.openForClip(trackIndex, clipIndex)
     }
 
+    function requestDynamicSubtitles(trackIndex, clipIndex) {
+        if (trackIndex < 0 || clipIndex < 0 || trackIndex >= root.tracks.length)
+            return
+        const clips = root.tracks[trackIndex].clips || []
+        if (clipIndex >= clips.length)
+            return
+        EditorState.selectClip(trackIndex, clipIndex)
+        dynamicSubtitlesDialog.openForClip(trackIndex, clipIndex, clips[clipIndex])
+    }
+
     OmniFlashClipDialog {
         id: omniFlashClipDialog
     }
@@ -118,6 +128,10 @@ Item {
 
     OmniStudioDialog {
         id: omniStudioDialog
+    }
+
+    DynamicSubtitlesDialog {
+        id: dynamicSubtitlesDialog
     }
 
     function requestSaveEffectPreset(trackIndex, clipIndex) {

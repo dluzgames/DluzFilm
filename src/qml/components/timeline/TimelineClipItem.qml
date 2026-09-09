@@ -1075,6 +1075,15 @@ Item {
                         clipItem.panel.requestRemoveSilence(clipItem.trackIndex, clipItem.clipIndex)
                 }
             }
+            ThemedMenuItem {
+                text: qsTr("Gerar Legendas Dinâmicas…")
+                icon.name: Theme.icons.captions
+                visible: (clipItem.trackType === "video" || clipItem.trackType === "audio") && clipItem.clipData.kind !== "adjustment"
+                onTriggered: {
+                    if (typeof clipItem.panel.requestDynamicSubtitles === "function")
+                        clipItem.panel.requestDynamicSubtitles(clipItem.trackIndex, clipItem.clipIndex)
+                }
+            }
             ThemedMenuSeparator { }
             ThemedMenuItem {
                 text: qsTr("Copy effects")
