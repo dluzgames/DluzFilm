@@ -496,55 +496,6 @@ ThemedDialog {
                                 }
                             }
 
-                            // Prompt 2: Remover Silêncios
-                            Rectangle {
-                                width: 340
-                                height: 50
-                                radius: Theme.radiusSm
-                                color: promptMouse2.containsMouse ? Theme.panelAccent : Theme.panelBackground
-                                border.width: Theme.borderWidth
-                                border.color: promptMouse2.containsMouse ? Theme.primary : Theme.panelBorder
-
-                                Row {
-                                    anchors.fill: parent
-                                    anchors.margins: Theme.spacingMd
-                                    spacing: Theme.spacingSm
-
-                                    Text {
-                                        text: "✂️"
-                                        font.pixelSize: 18
-                                        anchors.verticalCenter: parent.verticalCenter
-                                    }
-                                    Column {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        spacing: 2
-                                        Text {
-                                            text: qsTr("Remover Silêncios da Gravação")
-                                            font.family: Theme.fontFamily
-                                            font.pixelSize: Theme.fontSizeXs
-                                            font.weight: Font.DemiBold
-                                            color: Theme.foreground
-                                        }
-                                        Text {
-                                            text: qsTr("Corta pausas e respirações na timeline")
-                                            font.family: Theme.fontFamily
-                                            font.pixelSize: Theme.fontSizeTiny
-                                            color: Theme.mutedForeground
-                                        }
-                                    }
-                                }
-                                MouseArea {
-                                    id: promptMouse2
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        promptInput.text = "Remova todos os silêncios e pausas da gravação na timeline"
-                                        promptInput.forceActiveFocus()
-                                    }
-                                }
-                            }
-
                             // Prompt 3: Locução DLuz
                             Rectangle {
                                 width: 340
@@ -594,7 +545,7 @@ ThemedDialog {
                                 }
                             }
 
-                            // Prompt 4: Antigravity CLI
+                            // Prompt 4: Remover Silêncios
                             Rectangle {
                                 width: 340
                                 height: 50
@@ -609,7 +560,7 @@ ThemedDialog {
                                     spacing: Theme.spacingSm
 
                                     Text {
-                                        text: "🚀"
+                                        text: "✂️"
                                         font.pixelSize: 18
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
@@ -617,14 +568,14 @@ ThemedDialog {
                                         anchors.verticalCenter: parent.verticalCenter
                                         spacing: 2
                                         Text {
-                                            text: qsTr("Automação Antigravity DeepMind")
+                                            text: qsTr("Remover Silêncios da Gravação")
                                             font.family: Theme.fontFamily
                                             font.pixelSize: Theme.fontSizeXs
                                             font.weight: Font.DemiBold
                                             color: Theme.foreground
                                         }
                                         Text {
-                                            text: qsTr("Acessa habilidades avançadas no PC")
+                                            text: qsTr("Corta pausas e respirações na timeline")
                                             font.family: Theme.fontFamily
                                             font.pixelSize: Theme.fontSizeTiny
                                             color: Theme.mutedForeground
@@ -637,8 +588,7 @@ ThemedDialog {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        AiAgent.provider = "antigravity"
-                                        promptInput.text = "Crie uma vinheta com texto kinetic animado para o canal"
+                                        promptInput.text = "Remova todos os silêncios e pausas da gravação na timeline"
                                         promptInput.forceActiveFocus()
                                     }
                                 }
