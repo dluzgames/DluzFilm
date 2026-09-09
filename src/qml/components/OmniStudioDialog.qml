@@ -7,47 +7,331 @@ import ".."
 ThemedDialog {
     id: root
 
-    title: qsTr("OmniStudio — Clonagem de Voz & Vídeos OmniFlash")
-    preferredWidth: Theme.dialogWidthMd
+    title: qsTr("Dublagem & Voz IA — OmniVoice & Whisper")
+    preferredWidth: Theme.dialogWidthMd + 40
     showAccept: false
     rejectText: qsTr("Fechar")
 
     property int activeTab: 0
 
     function openDialog() {
+        // Se houver clipe de vídeo selecionado na timeline, auto-preenche o campo
+        const selected = AiAgent.selectedVideoClipPath()
+        if (selected && selected.length > 0) {
+            videoPathField.text = selected
+        }
         open()
     }
 
     contentItem: Column {
         id: body
-        width: parent ? parent.width : Theme.dialogWidthMd
-        spacing: Theme.spacingLg
+        width: parent ? parent.width : Theme.dialogWidthMd + 40
+        spacing: Theme.spacingMd
 
-        // Abas do Studio
+        // Barra de Abas do Studio estilo Google Stitch
         RowLayout {
             width: parent.width
             spacing: Theme.spacingSm
 
             ThemedButton {
-                text: qsTr("🎙️ Clonagem de Voz (OmniVoice)")
+                text: qsTr("🎬 Dublar Vídeo & Legendas (IA)")
                 variant: root.activeTab === 0 ? "primary" : "secondary"
                 Layout.fillWidth: true
                 onClicked: root.activeTab = 0
             }
 
             ThemedButton {
-                text: qsTr("🎥 Vídeo IA (OmniFlash)")
+                text: qsTr("🎙️ Clonagem de Voz (Locução)")
                 variant: root.activeTab === 1 ? "primary" : "secondary"
                 Layout.fillWidth: true
                 onClicked: root.activeTab = 1
             }
         }
 
-        // --- Aba 0: Voz ---
+        // =================================================================
+        // ABA 0: DUBLAR VÍDEO & GERAR LEGENDAS
+        // =================================================================
         Column {
             width: parent.width
             spacing: Theme.spacingMd
             visible: root.activeTab === 0
+
+            // Header explicativo
+            Rectangle {
+                width: parent.width
+                height: dubHeaderCol.implicitHeight + Theme.spacingSm * 2
+                radius: Theme.radiusSm
+                color: Theme.panelBackground
+                border.width: Theme.borderWidth
+                border.color: Theme.panelBorder
+
+                Column {
+                    id: dubHeaderCol
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: Theme.spacingSm
+                    spacing: 2
+
+                    ThemedLabel {
+                        text: qsTr("Transcreva, traduza e duble qualquer vídeo automaticamente com sincronia labial e legendas.")
+                        size: "xs"
+                        color: Theme.mutedForeground
+                        wrapMode: Text.WordWrap
+                        width: parent.width
+                    }
+                }
+            }
+
+            // Card 1: Seleção do Vídeo
+            Column {
+                width: parent.width
+                spacing: Theme.spacingXs
+
+                ThemedLabel {
+                    text: qsTr("Vídeo a ser Dublado:")
+                    size: "sm"
+                    font.weight: Font.Medium
+                }
+
+                RowLayout {
+                    width: parent.width
+                    spacing: Theme.spacingSm
+
+                    TextField {
+                        id: videoPathField
+                        Layout.fillWidth: true
+                        placeholderText: qsTr("Caminho do arquivo de vídeo (.mp4, .mov, .mkv)...")
+                        color: Theme.foreground
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSm
+                        background: Rectangle {
+                            color: Theme.inputBackground
+                            radius: Theme.radiusSm
+                            border.width: Theme.borderWidth
+                            border.color: Theme.panelBorder
+                        }
+                    }
+
+                    ThemedButton {
+                        text: qsTr("Usar da Timeline")
+                        variant: "ghost"
+                        tooltip: qsTr("Preencher com o clipe de vídeo atualmente selecionado na timeline")
+                        onClicked: {
+                            const selected = AiAgent.selectedVideoClipPath()
+                            if (selected && selected.length > 0) {
+                                videoPathField.text = selected
+                            } else {
+                                Toasts.info(qsTr("Nenhum clipe de vídeo selecionado na timeline."))
+                            }
+                        }
+                    }
+
+                    ThemedButton {
+                        text: qsTr("Procurar...")
+                        variant: "secondary"
+                        onClicked: {
+                            const url = FileDialogs.openFile(
+                                qsTr("Selecionar Vídeo para Dublagem"),
+                                [qsTr("Arquivos de Vídeo (*.mp4 *.mov *.mkv *.avi *.webm)"), qsTr("Todos os arquivos (*)")])
+                            if (url && url.toString() !== "") {
+                                let localPath = url.toLocalFile ? url.toLocalFile() : url.toString()
+                                if (localPath.indexOf("file:///") === 0) localPath = localPath.substring(8)
+                                else if (localPath.indexOf("file://") === 0) localPath = localPath.substring(7)
+                                videoPathField.text = localPath
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Card 2: Idioma de Destino (Outras Línguas)
+            Column {
+                width: parent.width
+                spacing: Theme.spacingXs
+
+                ThemedLabel {
+                    text: qsTr("Idioma de Destino (Dublar para):")
+                    size: "sm"
+                    font.weight: Font.Medium
+                }
+
+                GridLayout {
+                    width: parent.width
+                    columns: 4
+                    rowSpacing: Theme.spacingXs
+                    columnSpacing: Theme.spacingXs
+
+                    ThemedButton {
+                        text: "🇺🇸 " + qsTr("Inglês")
+                        variant: dubLangGroup.targetLang === "en" ? "primary" : "secondary"
+                        Layout.fillWidth: true
+                        onClicked: dubLangGroup.targetLang = "en"
+                    }
+                    ThemedButton {
+                        text: "🇪🇸 " + qsTr("Espanhol")
+                        variant: dubLangGroup.targetLang === "es" ? "primary" : "secondary"
+                        Layout.fillWidth: true
+                        onClicked: dubLangGroup.targetLang = "es"
+                    }
+                    ThemedButton {
+                        text: "🇨🇳 " + qsTr("Chinês")
+                        variant: dubLangGroup.targetLang === "zh" ? "primary" : "secondary"
+                        Layout.fillWidth: true
+                        onClicked: dubLangGroup.targetLang = "zh"
+                    }
+                    ThemedButton {
+                        text: "🇧🇷 " + qsTr("Português")
+                        variant: dubLangGroup.targetLang === "pt-BR" ? "primary" : "secondary"
+                        Layout.fillWidth: true
+                        onClicked: dubLangGroup.targetLang = "pt-BR"
+                    }
+                    ThemedButton {
+                        text: "🇫🇷 " + qsTr("Francês")
+                        variant: dubLangGroup.targetLang === "fr" ? "primary" : "secondary"
+                        Layout.fillWidth: true
+                        onClicked: dubLangGroup.targetLang = "fr"
+                    }
+                    ThemedButton {
+                        text: "🇩🇪 " + qsTr("Alemão")
+                        variant: dubLangGroup.targetLang === "de" ? "primary" : "secondary"
+                        Layout.fillWidth: true
+                        onClicked: dubLangGroup.targetLang = "de"
+                    }
+                    ThemedButton {
+                        text: "🇯🇵 " + qsTr("Japonês")
+                        variant: dubLangGroup.targetLang === "ja" ? "primary" : "secondary"
+                        Layout.fillWidth: true
+                        onClicked: dubLangGroup.targetLang = "ja"
+                    }
+                    ThemedButton {
+                        text: "🇮🇹 " + qsTr("Italiano")
+                        variant: dubLangGroup.targetLang === "it" ? "primary" : "secondary"
+                        Layout.fillWidth: true
+                        onClicked: dubLangGroup.targetLang = "it"
+                    }
+                }
+                Item { id: dubLangGroup; property string targetLang: "en" }
+            }
+
+            // Card 3: Motor de Dublagem
+            Column {
+                width: parent.width
+                spacing: Theme.spacingXs
+
+                ThemedLabel {
+                    text: qsTr("Motor de Voz da Dublagem:")
+                    size: "sm"
+                    font.weight: Font.Medium
+                }
+
+                RowLayout {
+                    width: parent.width
+                    spacing: Theme.spacingSm
+
+                    ThemedButton {
+                        text: qsTr("🤖 OmniVoice (Voz do DLuz - CUDA RTX 2060)")
+                        variant: dubEngineGroup.engine === "omnivoice" ? "primary" : "secondary"
+                        Layout.fillWidth: true
+                        onClicked: dubEngineGroup.engine = "omnivoice"
+                    }
+
+                    ThemedButton {
+                        text: qsTr("🗣️ Edge-TTS (Vozes Neurais)")
+                        variant: dubEngineGroup.engine === "edge_tts" ? "primary" : "secondary"
+                        Layout.fillWidth: true
+                        onClicked: dubEngineGroup.engine = "edge_tts"
+                    }
+                    Item { id: dubEngineGroup; property string engine: "omnivoice" }
+                }
+            }
+
+            // Card 4: Opções de Legenda e Ducking
+            Column {
+                width: parent.width
+                spacing: Theme.spacingXs
+
+                ThemedLabel {
+                    text: qsTr("Opções de Entrega:")
+                    size: "sm"
+                    font.weight: Font.Medium
+                }
+
+                RowLayout {
+                    width: parent.width
+                    spacing: Theme.spacingMd
+
+                    CheckBox {
+                        id: autoSubsCheck
+                        text: qsTr("Gerar Legendas (.srt) e Inserir na Timeline")
+                        checked: true
+                    }
+
+                    CheckBox {
+                        id: hardsubCheck
+                        text: qsTr("Gravar Legenda no Vídeo (Hardsub)")
+                        checked: false
+                    }
+                }
+
+                RowLayout {
+                    width: parent.width
+                    spacing: Theme.spacingSm
+
+                    ThemedLabel {
+                        text: qsTr("Volume do Áudio Original de Fundo:")
+                        size: "xs"
+                        color: Theme.mutedForeground
+                    }
+
+                    ThemedButton {
+                        text: qsTr("Mudo (0%)")
+                        variant: bgmGroup.vol === 0.0 ? "primary" : "secondary"
+                        onClicked: bgmGroup.vol = 0.0
+                    }
+                    ThemedButton {
+                        text: qsTr("Sutil (15%)")
+                        variant: bgmGroup.vol === 0.15 ? "primary" : "secondary"
+                        onClicked: bgmGroup.vol = 0.15
+                    }
+                    ThemedButton {
+                        text: qsTr("Presente (30%)")
+                        variant: bgmGroup.vol === 0.30 ? "primary" : "secondary"
+                        onClicked: bgmGroup.vol = 0.30
+                    }
+                    Item { id: bgmGroup; property real vol: 0.15 }
+                }
+            }
+
+            // Botão CTA Dublar
+            ThemedButton {
+                width: parent.width
+                height: 44
+                text: AiAgent.isBusy ? qsTr("⏳ Dublando Vídeo em Segundo Plano...") : qsTr("🚀 Dublar Vídeo, Gerar Legendas & Inserir na Timeline")
+                variant: "primary"
+                enabled: !AiAgent.isBusy && videoPathField.text.trim().length > 0
+                onClicked: {
+                    AiAgent.dubVideo(
+                        videoPathField.text.trim(),
+                        dubLangGroup.targetLang,
+                        dubEngineGroup.engine,
+                        autoSubsCheck.checked,
+                        hardsubCheck.checked,
+                        bgmGroup.vol
+                    )
+                    Toasts.info(qsTr("Iniciando processo de dublagem e legendagem por IA..."))
+                    root.close()
+                }
+            }
+        }
+
+        // =================================================================
+        // ABA 1: CLONAGEM DE VOZ (LOCUÇÃO DE TEXTO)
+        // =================================================================
+        Column {
+            width: parent.width
+            spacing: Theme.spacingMd
+            visible: root.activeTab === 1
 
             RowLayout {
                 width: parent.width
@@ -67,6 +351,49 @@ ThemedDialog {
                     onClicked: voiceEngineGroup.checkedEngine = "edge_tts"
                 }
                 Item { id: voiceEngineGroup; property string checkedEngine: "omnivoice" }
+            }
+
+            // Idioma da Voz
+            Column {
+                width: parent.width
+                spacing: Theme.spacingXs
+
+                ThemedLabel {
+                    text: qsTr("Idioma da Narração:")
+                    size: "sm"
+                    font.weight: Font.Medium
+                }
+
+                RowLayout {
+                    width: parent.width
+                    spacing: Theme.spacingSm
+
+                    ThemedButton {
+                        text: "🇧🇷 Português"
+                        variant: voiceLangGroup.lang === "pt" ? "primary" : "secondary"
+                        Layout.fillWidth: true
+                        onClicked: voiceLangGroup.lang = "pt"
+                    }
+                    ThemedButton {
+                        text: "🇺🇸 Inglês"
+                        variant: voiceLangGroup.lang === "en" ? "primary" : "secondary"
+                        Layout.fillWidth: true
+                        onClicked: voiceLangGroup.lang = "en"
+                    }
+                    ThemedButton {
+                        text: "🇪🇸 Espanhol"
+                        variant: voiceLangGroup.lang === "es" ? "primary" : "secondary"
+                        Layout.fillWidth: true
+                        onClicked: voiceLangGroup.lang = "es"
+                    }
+                    ThemedButton {
+                        text: "🇨🇳 Chinês"
+                        variant: voiceLangGroup.lang === "zh" ? "primary" : "secondary"
+                        Layout.fillWidth: true
+                        onClicked: voiceLangGroup.lang = "zh"
+                    }
+                    Item { id: voiceLangGroup; property string lang: "pt" }
+                }
             }
 
             Column {
@@ -101,7 +428,7 @@ ThemedDialog {
                     ThemedButton {
                         text: qsTr("Bordão Oficial")
                         variant: "ghost"
-                        onClicked: voiceTextArea.text = "Fala melhores, beleza? Hoje eu vou mostrar uma novidade incrível para vocês..."
+                        onClicked: voiceTextArea.text = "Fala melhores, beleza? Sejam muito bem-vindos ao canal DLuz Games! Hoje vou mostrar uma novidade incrível para vocês..."
                     }
                 }
 
@@ -128,100 +455,13 @@ ThemedDialog {
 
             ThemedButton {
                 width: parent.width
+                height: 44
                 text: qsTr("🎙️ Sintetizar Voz & Inserir na Timeline")
                 variant: "primary"
                 enabled: !AiAgent.isBusy && voiceTextArea.text.trim().length > 0
                 onClicked: {
-                    AiAgent.synthesizeVoice(voiceTextArea.text.trim(), voiceEngineGroup.checkedEngine)
+                    AiAgent.synthesizeVoice(voiceTextArea.text.trim(), voiceEngineGroup.checkedEngine, voiceLangGroup.lang)
                     Toasts.info(qsTr("Sintetizando locução em segundo plano..."))
-                    root.close()
-                }
-            }
-        }
-
-        // --- Aba 1: OmniFlash ---
-        Column {
-            width: parent.width
-            spacing: Theme.spacingMd
-            visible: root.activeTab === 1
-
-            ThemedLabel {
-                width: parent.width
-                size: "sm"
-                wrapMode: Text.WordWrap
-                text: qsTr("Gere vídeos em alta definição com o OmniFlash / Google Flow direto no seu projeto da DLuz Games.")
-            }
-
-            Column {
-                width: parent.width
-                spacing: Theme.spacingXs
-
-                ThemedLabel {
-                    text: qsTr("Proporção do Vídeo:")
-                    size: "sm"
-                    font.weight: Font.Medium
-                }
-
-                RowLayout {
-                    width: parent.width
-                    spacing: Theme.spacingSm
-
-                    ThemedButton {
-                        text: qsTr("16:9 (Horizontal / YouTube)")
-                        variant: flashAspectGroup.aspect === "16:9" ? "primary" : "secondary"
-                        Layout.fillWidth: true
-                        onClicked: flashAspectGroup.aspect = "16:9"
-                    }
-
-                    ThemedButton {
-                        text: qsTr("9:16 (Vertical / TikTok / Shorts)")
-                        variant: flashAspectGroup.aspect === "9:16" ? "primary" : "secondary"
-                        Layout.fillWidth: true
-                        onClicked: flashAspectGroup.aspect = "9:16"
-                    }
-                    Item { id: flashAspectGroup; property string aspect: "16:9" }
-                }
-            }
-
-            Column {
-                width: parent.width
-                spacing: Theme.spacingXs
-
-                ThemedLabel {
-                    text: qsTr("Prompt da Cena:")
-                    size: "sm"
-                    font.weight: Font.Medium
-                }
-
-                ScrollView {
-                    width: parent.width
-                    height: 90
-
-                    TextArea {
-                        id: omniPromptArea
-                        placeholderText: qsTr("Descreva a cena desejada (em inglês ou português)...")
-                        color: Theme.foreground
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSm
-                        wrapMode: TextEdit.Wrap
-                        background: Rectangle {
-                            color: Theme.inputBackground
-                            radius: Theme.radiusSm
-                            border.width: Theme.borderWidth
-                            border.color: Theme.panelBorder
-                        }
-                    }
-                }
-            }
-
-            ThemedButton {
-                width: parent.width
-                text: qsTr("🎥 Gerar Cena OmniFlash & Inserir na Timeline")
-                variant: "primary"
-                enabled: !AiAgent.isBusy && omniPromptArea.text.trim().length > 0
-                onClicked: {
-                    AiAgent.generateOmniFlash(omniPromptArea.text.trim(), flashAspectGroup.aspect)
-                    Toasts.info(qsTr("Iniciando geração de vídeo com OmniFlash..."))
                     root.close()
                 }
             }

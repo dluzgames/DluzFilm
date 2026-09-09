@@ -1030,7 +1030,17 @@ void AiAgentController::createHyperframes(const QString &title, const QString &s
     }
 }
 
-void AiAgentController::synthesizeVoice(const QString &text, const QString &engine, const QString &voicePath)
+QString AiAgentController::selectedVideoClipPath() const
+{
+    if (!m_controller)
+        return QString();
+    const QVariantMap clip = m_controller->selectedClipData();
+    if (clip.isEmpty())
+        return QString();
+    return clip.value(QStringLiteral("path")).toString();
+}
+
+void AiAgentController::synthesizeVoice(const QString &text, const QString &engine, const QString &lang, const QString &voicePath)
 {
     if (text.trimmed().isEmpty())
         return;
@@ -1067,25 +1077,111 @@ void AiAgentController::synthesizeVoice(const QString &text, const QString &engi
         }
     });
 
+    const QString script = QStringLiteral("C:/Users/dluzgg/.gemini/config/skills/dublagem/scripts/dubber.py");
     if (engine == QStringLiteral("omnivoice")) {
         // OmniVoice CUDA on RTX 2060
-        const QString refVoice = voicePath.isEmpty() ? QStringLiteral("D:/rosto dluz/dluz_voice.pt") : voicePath;
-        const QString script = QStringLiteral("C:/Users/dluzgg/.gemini/config/skills/dublagem/scripts/dubber.py");
-
+        const QString refVoice = voicePath.isEmpty() ? QStringLiteral("C:/Users/dluzgg/Documents/antigravity/blissful-hertz/bilibili_tools/reference_voice/dluz_voice.pt") : voicePath;
         proc->start(QStringLiteral("python"),
                     QStringList{script, QStringLiteral("--tts"), text,
+                                QStringLiteral("--engine"), QStringLiteral("omnivoice"),
                                 QStringLiteral("--output"), outFile,
                                 QStringLiteral("--voice"), refVoice,
-                                QStringLiteral("--lang"), QStringLiteral("pt"),
+                                QStringLiteral("--lang"), lang.isEmpty() ? QStringLiteral("pt") : lang,
                                 QStringLiteral("--speed"), QStringLiteral("0.95")});
     } else {
-        // Edge-TTS default
-        proc->start(QStringLiteral("cmd.exe"),
-                    QStringList{QStringLiteral("/c"), QStringLiteral("edge-tts"),
-                                QStringLiteral("--voice"), QStringLiteral("pt-BR-AntonioNeural"),
-                                QStringLiteral("--text"), text,
-                                QStringLiteral("--write-media"), outFile});
+        // Edge-TTS neural
+        proc->start(QStringLiteral("python"),
+                    QStringList{script, QStringLiteral("--tts"), text,
+                                QStringLiteral("--engine"), QStringLiteral("edge_tts"),
+                                QStringLiteral("--output"), outFile,
+                                QStringLiteral("--lang"), lang.isEmpty() ? QStringLiteral("pt-BR") : lang});
     }
+}
+
+void AiAgentController::dubVideo(const QString &videoPath,
+                                 const QString &targetLang,
+                                 const QString &engine,
+                                 bool generateSubs,
+                                 bool burnSubs,
+                                 double bgmVolume)
+{
+    if (videoPath.trimmed().isEmpty() || !QFile::exists(videoPath)) {
+        appendChatMessage(QStringLiteral("assistant"),
+                          tr("❌ Erro: Arquivo de vídeo não encontrado para dublagem:\n%1").arg(videoPath));
+        emit videoDubbingFinished(false, QString(), QString(), tr("Arquivo de vídeo inválido"));
+        return;
+    }
+
+    setBusy(true, tr("Dublando vídeo para %1 e gerando legendas...").arg(targetLang.toUpper()));
+
+    const QString outDir = QStringLiteral("D:/antigravity/videos gerados");
+    QDir().mkpath(outDir);
+
+    auto *proc = new QProcess(this);
+    setupSilentProcess(proc);
+
+    const QString script = QStringLiteral("C:/Users/dluzgg/.gemini/config/skills/dublagem/scripts/dubber.py");
+    QStringList args{
+        script,
+        videoPath,
+        QStringLiteral("--lang"), targetLang,
+        QStringLiteral("--engine"), engine,
+        QStringLiteral("--output"), outDir,
+        QStringLiteral("--bgm-vol"), QString::number(bgmVolume, 'f', 2)
+    };
+
+    if (burnSubs)
+        args << QStringLiteral("--burn");
+
+    QObject::connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc, videoPath, targetLang, generateSubs](int exitCode, QProcess::ExitStatus exitStatus) {
+        Q_UNUSED(exitStatus);
+        const QString stdoutStr = QString::fromUtf8(proc->readAllStandardOutput());
+        const QString stderrStr = QString::fromUtf8(proc->readAllStandardError());
+        proc->deleteLater();
+        this->setBusy(false);
+
+        QString outputVideo;
+        QString outputSrt;
+
+        const QStringList lines = stdoutStr.split(QLatin1Char('\n'));
+        for (const QString &line : lines) {
+            const QString trimmed = line.trimmed();
+            if (trimmed.startsWith(QStringLiteral("OUTPUT_VIDEO:"))) {
+                outputVideo = trimmed.mid(13).trimmed();
+            } else if (trimmed.startsWith(QStringLiteral("OUTPUT_SRT:"))) {
+                outputSrt = trimmed.mid(11).trimmed();
+            }
+        }
+
+        if (exitCode == 0 && !outputVideo.isEmpty() && QFile::exists(outputVideo)) {
+            // Importar o vídeo dublado para a timeline
+            if (this->m_controller) {
+                this->m_controller->importMediaToTimeline(outputVideo);
+                // Se o usuário solicitou legendas e o .srt foi gerado, importa na timeline
+                if (generateSubs && !outputSrt.isEmpty() && QFile::exists(outputSrt)) {
+                    this->m_controller->importSubtitleFile(QUrl::fromLocalFile(outputSrt));
+                }
+            }
+
+            QString msg = QObject::tr("🎬 Vídeo dublado para %1 com sucesso!\n📁 Vídeo: %2")
+                              .arg(targetLang.toUpper(), outputVideo);
+            if (!outputSrt.isEmpty()) {
+                msg += QObject::tr("\n📝 Legendas geradas e inseridas na timeline: %1").arg(outputSrt);
+            }
+
+            this->appendChatMessage(QStringLiteral("assistant"), msg);
+            emit this->videoDubbingFinished(true, outputVideo, outputSrt,
+                                            QObject::tr("Dublagem e legendas adicionadas à timeline!"));
+        } else {
+            const QString err = stderrStr.isEmpty() ? stdoutStr : stderrStr;
+            this->appendChatMessage(QStringLiteral("assistant"),
+                              QObject::tr("❌ Falha na dublagem do vídeo:\n%1").arg(err));
+            emit this->videoDubbingFinished(false, QString(), QString(), err);
+        }
+    });
+
+    proc->start(QStringLiteral("python"), args);
 }
 
 void AiAgentController::generateOmniFlash(const QString &prompt, const QString &aspectRatio)

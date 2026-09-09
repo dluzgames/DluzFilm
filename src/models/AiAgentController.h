@@ -80,7 +80,18 @@ public:
     // Voice cloning with OmniVoice (CUDA) or Edge-TTS
     Q_INVOKABLE void synthesizeVoice(const QString &text,
                                      const QString &engine = QStringLiteral("omnivoice"),
+                                     const QString &lang = QStringLiteral("pt"),
                                      const QString &voicePath = QString());
+
+    // Video Dubbing & Auto-subtitles (Whisper + OmniVoice / Edge-TTS)
+    Q_INVOKABLE void dubVideo(const QString &videoPath,
+                              const QString &targetLang = QStringLiteral("en"),
+                              const QString &engine = QStringLiteral("omnivoice"),
+                              bool generateSubs = true,
+                              bool burnSubs = false,
+                              double bgmVolume = 0.15);
+
+    Q_INVOKABLE QString selectedVideoClipPath() const;
 
     // OmniFlash AI Video generation
     Q_INVOKABLE void generateOmniFlash(const QString &prompt,
@@ -101,6 +112,7 @@ signals:
     void chatHistoryChanged();
     void hyperframesFinished(bool success, const QString &outputPath, const QString &message);
     void voiceSynthesisFinished(bool success, const QString &outputPath, const QString &message);
+    void videoDubbingFinished(bool success, const QString &videoPath, const QString &srtPath, const QString &message);
     void omniFlashFinished(bool success, const QString &outputPath, const QString &message);
 
 private slots:

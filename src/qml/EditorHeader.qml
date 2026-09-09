@@ -176,6 +176,10 @@ Rectangle {
         id: hyperframesStudioDialog
     }
 
+    OmniFlashDialog {
+        id: omniFlashDialog
+    }
+
     OmniStudioDialog {
         id: omniStudioDialog
     }
@@ -612,10 +616,19 @@ Rectangle {
             }
 
             IconButton {
-                glyph: Theme.icons.sparkles
+                glyph: Theme.icons.film
                 variant: "ghost"
-                text: qsTr("OmniStudio")
-                tooltip: qsTr("OmniStudio — clonagem de voz e geração de vídeo IA")
+                text: qsTr("OmniFlash")
+                tooltip: qsTr("OmniFlash — Geração de vídeos cinematográficos com IA / Google Flow")
+                anchors.verticalCenter: parent.verticalCenter
+                onClicked: omniFlashDialog.openDialog()
+            }
+
+            IconButton {
+                glyph: Theme.icons.captions
+                variant: "ghost"
+                text: qsTr("Dublagem & Voz")
+                tooltip: qsTr("Dublagem de vídeo em múltiplos idiomas, legendas automáticas e clonagem de voz")
                 anchors.verticalCenter: parent.verticalCenter
                 onClicked: omniStudioDialog.openDialog()
             }
