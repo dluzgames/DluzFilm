@@ -890,6 +890,7 @@ public:
     // width of the gap immediately following that position, closing it. Linked partner
     // clips on other tracks (e.g. a companion audio clip) follow along to stay in sync.
     Q_INVOKABLE void closeGap(int trackIndex, double gapStartSeconds);
+    Q_INVOKABLE void closeAllGaps(int trackIndex = -1);
     Q_INVOKABLE void alignSelectedClipLeft();
     Q_INVOKABLE void alignSelectedClipRight();
     Q_INVOKABLE void splitSelectedClipLeft();
@@ -1207,6 +1208,7 @@ public:
     Q_INVOKABLE void undo();
     Q_INVOKABLE void redo();
     Q_INVOKABLE double snapTime(double seconds) const;
+    Q_INVOKABLE double snapClipTime(double desiredStart, double duration, const QString &excludeClipId = QString()) const;
     Q_INVOKABLE QVariantList waveformPeaks(const QString &path) const;
     // Whole-file peaks sliced to a source window, for a dialog whose x axis is a clip's trimmed
     // range rather than the whole file. Shares the dense cache and the waveformReady signal with

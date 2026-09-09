@@ -4345,6 +4345,13 @@ double AppController::snapTime(double seconds) const
                                               m_playheadUs, extraSnapTargets()));
 }
 
+double AppController::snapClipTime(double desiredStart, double duration, const QString &excludeClipId) const
+{
+    return drift::usToSeconds(drift::snapClipTime(m_project, drift::secondsToUs(desiredStart),
+                                                  drift::secondsToUs(duration), m_snapEnabled,
+                                                  m_playheadUs, excludeClipId, extraSnapTargets()));
+}
+
 drift::TimeUs AppController::clipDurationForAssetIndex(int assetIndex) const
 {
     if (!m_assetLibrary)
@@ -4844,6 +4851,47 @@ void AppController::deleteSelectedClip()
                 track.transitions.removeAt(i);
         }
     }
+
+    if (m_rippleEnabled) {
+        QSet<int> affectedTracks;
+        for (const QPair<int, int> &pair : pairs) {
+            affectedTracks.insert(pair.first);
+        }
+        for (int tIdx : affectedTracks) {
+            if (tIdx >= 0 && tIdx < m_project.tracks().size()) {
+                drift::Track &t = m_project.tracks()[tIdx];
+                if (t.clips.size() > 1) {
+                    std::sort(t.clips.begin(), t.clips.end(), [](const drift::Clip &a, const drift::Clip &b) {
+                        return a.timelineStart < b.timelineStart;
+                    });
+                    drift::TimeUs curPos = 0;
+                    QSet<QString> movedIds;
+                    for (int i = 0; i < t.clips.size(); ++i) {
+                        drift::Clip &c = t.clips[i];
+                        if (i == 0) {
+                            if (c.timelineStart > 0) {
+                                c.timelineStart = 0;
+                                movedIds.insert(c.id);
+                            }
+                            curPos = c.timelineEnd();
+                        } else {
+                            if (c.timelineStart > curPos) {
+                                c.timelineStart = curPos;
+                                movedIds.insert(c.id);
+                            }
+                            curPos = c.timelineEnd();
+                        }
+                    }
+                    for (const drift::Clip &c : t.clips) {
+                        if (movedIds.contains(c.id)) {
+                            syncLinkedPartnersFrom(m_project, c, movedIds);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pushProjectEdit(before, tr("Clip deleted"));
     clearSelection();
     finishEdit(tr("Clip deleted"));
@@ -4862,8 +4910,13 @@ void AppController::moveClip(int trackIndex, int clipIndex, double newStart)
     QList<QPair<int, int>> targets = m_selection.contains(requested) ? m_selection
                                                                       : QList<QPair<int, int>>{requested};
     const drift::Project before = m_project;
-    const drift::TimeUs desiredUs = drift::secondsToUs(newStart);
-    const drift::TimeUs baseUs = m_project.tracks().at(trackIndex).clips.at(clipIndex).timelineStart;
+    const drift::Clip &leaderClip = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    drift::TimeUs desiredUs = drift::secondsToUs(newStart);
+    if (m_snapEnabled) {
+        desiredUs = drift::snapClipTime(m_project, desiredUs, leaderClip.timelineDuration,
+                                        m_snapEnabled, m_playheadUs, leaderClip.id, extraSnapTargets());
+    }
+    const drift::TimeUs baseUs = leaderClip.timelineStart;
     const drift::TimeUs delta = desiredUs - baseUs;
 
     // When moving multiple clips, clamp leftward movement so the earliest clip in the selection
@@ -4967,6 +5020,66 @@ void AppController::closeGap(int trackIndex, double gapStartSeconds)
 
     pushProjectEdit(before, tr("Close gap"));
     finishEdit(tr("Close gap"));
+}
+
+void AppController::closeAllGaps(int trackIndex)
+{
+    if (m_project.tracks().isEmpty())
+        return;
+
+    const drift::Project before = m_project;
+    bool changed = false;
+
+    auto compactTrack = [&](int tIdx) {
+        if (tIdx < 0 || tIdx >= m_project.tracks().size())
+            return;
+        drift::Track &track = m_project.tracks()[tIdx];
+        if (track.clips.isEmpty())
+            return;
+
+        std::sort(track.clips.begin(), track.clips.end(), [](const drift::Clip &a, const drift::Clip &b) {
+            return a.timelineStart < b.timelineStart;
+        });
+
+        drift::TimeUs currentPos = 0;
+        QSet<QString> movedIds;
+        for (int i = 0; i < track.clips.size(); ++i) {
+            drift::Clip &clip = track.clips[i];
+            if (i == 0) {
+                if (clip.timelineStart > 0) {
+                    clip.timelineStart = 0;
+                    movedIds.insert(clip.id);
+                    changed = true;
+                }
+                currentPos = clip.timelineEnd();
+            } else {
+                if (clip.timelineStart > currentPos) {
+                    clip.timelineStart = currentPos;
+                    movedIds.insert(clip.id);
+                    changed = true;
+                }
+                currentPos = clip.timelineEnd();
+            }
+        }
+        for (const drift::Clip &clip : track.clips) {
+            if (movedIds.contains(clip.id)) {
+                syncLinkedPartnersFrom(m_project, clip, movedIds);
+            }
+        }
+    };
+
+    if (trackIndex >= 0) {
+        compactTrack(trackIndex);
+    } else {
+        for (int i = 0; i < m_project.tracks().size(); ++i) {
+            compactTrack(i);
+        }
+    }
+
+    if (changed) {
+        pushProjectEdit(before, tr("Close all gaps"));
+        finishEdit(tr("Close all gaps"));
+    }
 }
 
 void AppController::splitAtPlayhead()
@@ -5427,12 +5540,16 @@ void AppController::moveClipToTrack(int trackIndex, int clipIndex, int newTrackI
                                                                       : QList<QPair<int, int>>{requested};
 
     const drift::Project before = m_project;
-    const drift::TimeUs desiredUs = drift::secondsToUs(newStart);
-    const drift::TimeUs baseUs = m_project.tracks().at(trackIndex).clips.at(clipIndex).timelineStart;
+    const drift::Clip &leaderClip = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    drift::TimeUs desiredUs = drift::secondsToUs(newStart);
+    if (m_snapEnabled) {
+        desiredUs = drift::snapClipTime(m_project, desiredUs, leaderClip.timelineDuration,
+                                        m_snapEnabled, m_playheadUs, leaderClip.id, extraSnapTargets());
+    }
+    const drift::TimeUs baseUs = leaderClip.timelineStart;
     const drift::TimeUs timeDelta = desiredUs - baseUs;
 
     // Verify the leader clip can land on the destination track
-    const drift::Clip &leaderClip = m_project.tracks().at(trackIndex).clips.at(clipIndex);
     if (!m_project.tracks().at(newTrackIndex).allowsClipType(leaderClip.type))
         return;
     const QString leaderId = leaderClip.id;

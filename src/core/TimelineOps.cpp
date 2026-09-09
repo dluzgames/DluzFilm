@@ -34,6 +34,49 @@ TimeUs snapTime(const Project &project, TimeUs time, bool snapEnabled, TimeUs pl
     return qMax<TimeUs>(0, best);
 }
 
+TimeUs snapClipTime(const Project &project, TimeUs desiredStart, TimeUs duration,
+                    bool snapEnabled, TimeUs playheadUs, const QString &excludeClipId,
+                    const QList<TimeUs> &extraTargets, TimeUs thresholdUs)
+{
+    if (!snapEnabled)
+        return qMax<TimeUs>(0, desiredStart);
+
+    QList<TimeUs> targets = {0, playheadUs};
+    for (const Track &track : project.tracks()) {
+        for (const Clip &clip : track.clips) {
+            if (!excludeClipId.isEmpty() && clip.id == excludeClipId)
+                continue;
+            targets.append(clip.timelineStart);
+            targets.append(clip.timelineEnd());
+        }
+    }
+    targets.append(extraTargets);
+
+    TimeUs bestStart = desiredStart;
+    TimeUs bestDistance = thresholdUs;
+
+    // Test 1: snap left edge (start) to targets
+    for (TimeUs target : targets) {
+        const TimeUs distance = qAbs(target - desiredStart);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            bestStart = target;
+        }
+    }
+
+    // Test 2: snap right edge (start + duration) to targets -> start = target - duration
+    const TimeUs desiredEnd = desiredStart + duration;
+    for (TimeUs target : targets) {
+        const TimeUs distance = qAbs(target - desiredEnd);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            bestStart = target - duration;
+        }
+    }
+
+    return qMax<TimeUs>(0, bestStart);
+}
+
 TimeUs resolveClipStart(const Project &project, const Track &track, int excludeClipIndex,
                         TimeUs desiredStart, TimeUs duration, bool snapEnabled, TimeUs playheadUs,
                         const QList<TimeUs> &extraTargets)

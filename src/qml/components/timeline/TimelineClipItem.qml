@@ -277,7 +277,7 @@ Item {
         const pos = mapToItem(timelineColumn, width / 2, height / 2)
         const targetTrack = panel.trackIndexAtY(pos.y)
         panel.showLandingPreview(targetTrack >= 0 ? targetTrack : trackIndex,
-                                 desired, clipData.duration)
+                                 desired, clipData.duration, clipData.id)
     }
     onXChanged: updateMovePreview()
     onYChanged: updateMovePreview()
@@ -1099,15 +1099,22 @@ Item {
             // Clear follow before committing so partners don't keep the drag
             // offset on top of the new model start for a frame.
             panel.clearMoveFollow()
-            panel.clearLandingPreview()
             if (!moved) {
+                panel.clearLandingPreview()
                 if (wantsMenu) {
                     clipItem.y = Theme.clipSelectionRingWidth
                     clipContextMenu.popup()
                 }
                 return
             }
-            const newStart = (clipItem.x - Theme.clipSelectionRingWidth) / panel.pxPerSecond
+            const rawStart = Math.max(0, (clipItem.x - Theme.clipSelectionRingWidth) / panel.pxPerSecond)
+            let newStart = rawStart
+            if (panel.dropTrackIndex >= 0 && panel.dropStartSeconds >= 0) {
+                newStart = panel.dropStartSeconds
+            } else if (typeof panel.snapClipStart === "function") {
+                newStart = panel.snapClipStart(rawStart, clipItem.clipData.duration, clipItem.clipData.id).start
+            }
+            panel.clearLandingPreview()
             const pos = clipItem.mapToItem(timelineColumn, clipItem.width / 2, clipItem.height / 2)
             const target = typeof panel.dropTargetAtY === "function"
                          ? panel.dropTargetAtY(pos.y)

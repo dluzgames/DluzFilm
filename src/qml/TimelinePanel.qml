@@ -258,8 +258,8 @@ PanelFrame {
 
     // Shared by library drops and in-timeline clip moves so both snap and show
     // the same outline the same way.
-    function showLandingPreview(trackIndex, desiredStart, duration) {
-        const snapped = snapClipStart(desiredStart, duration)
+    function showLandingPreview(trackIndex, desiredStart, duration, excludeClipId) {
+        const snapped = snapClipStart(desiredStart, duration, excludeClipId)
         dropTrackIndex = trackIndex
         dropStartSeconds = snapped.start
         dropDurationSeconds = duration
@@ -353,7 +353,19 @@ PanelFrame {
 
     // Snap a clip's desired start against timeline targets, testing both edges.
     // Returns {start, guide}; guide < 0 means no snap occurred.
-    function snapClipStart(desiredStart, duration) {
+    function snapClipStart(desiredStart, duration, excludeClipId) {
+        if (!EditorState.snapEnabled)
+            return { "start": desiredStart, "guide": -1 }
+        if (typeof EditorState.snapClipTime === "function") {
+            const snapped = EditorState.snapClipTime(desiredStart, duration, excludeClipId || "")
+            const diff = Math.abs(snapped - desiredStart)
+            if (diff > 0.0005) {
+                const rightDiff = Math.abs((snapped + duration) - (desiredStart + duration))
+                const guide = (rightDiff < 0.001) ? (snapped + duration) : snapped
+                return { "start": snapped, "guide": guide }
+            }
+            return { "start": desiredStart, "guide": -1 }
+        }
         const l = EditorState.snapTime(desiredStart)
         const rEdge = EditorState.snapTime(desiredStart + duration)
         const lSnapped = Math.abs(l - desiredStart) > 0.0005
@@ -1661,15 +1673,25 @@ PanelFrame {
                                             anchors.fill: parent
                                             visible: gapMouse.containsMouse
                                             color: Qt.rgba(Theme.panelAccent.r, Theme.panelAccent.g,
-                                                           Theme.panelAccent.b, 0.35)
+                                                           Theme.panelAccent.b, 0.45)
+                                            border.width: 1
+                                            border.color: Theme.panelAccent
+                                            radius: 3
                                         }
 
                                         MouseArea {
                                             id: gapMouse
                                             anchors.fill: parent
                                             hoverEnabled: true
-                                            acceptedButtons: Qt.RightButton
-                                            onPressed: gapContextMenu.popup()
+                                            cursorShape: Qt.PointingHandCursor
+                                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                            onClicked: function(mouse) {
+                                                if (mouse.button === Qt.RightButton) {
+                                                    gapContextMenu.popup()
+                                                } else {
+                                                    EditorState.closeGap(trackRow.trackIndex, gapItem.modelData.start)
+                                                }
+                                            }
 
                                             ThemedContextMenu {
                                                 id: gapContextMenu
@@ -1678,6 +1700,11 @@ PanelFrame {
                                                     icon.name: Theme.icons.chevronsRightLeft
                                                     onTriggered: EditorState.closeGap(trackRow.trackIndex,
                                                                                       gapItem.modelData.start)
+                                                }
+                                                ThemedMenuItem {
+                                                    text: qsTr("Close All Gaps")
+                                                    icon.name: Theme.icons.chevronsRightLeft
+                                                    onTriggered: EditorState.closeAllGaps(trackRow.trackIndex)
                                                 }
                                             }
                                         }

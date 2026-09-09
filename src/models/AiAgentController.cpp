@@ -307,7 +307,8 @@ QString AiAgentController::buildSystemPrompt() const
                                   "- Remover silêncios: [ACTION:REMOVE_SILENCE|-30|0.3|0.08]\n"
                                   "- Sintetizar voz com OmniVoice: [ACTION:CLONE_VOICE|omnivoice|texto completo aqui]\n"
                                   "- Gerar vídeo OmniFlash: [ACTION:OMNIFLASH|16:9|prompt da cena em inglês]\n"
-                                  "- Ativar Chroma Key no clip selecionado: [ACTION:CHROMA_KEY]\n");
+                                  "- Ativar Chroma Key no clip selecionado: [ACTION:CHROMA_KEY]\n"
+                                  "- Fechar espaços / Modo magnético: [ACTION:CLOSE_GAPS]\n");
 
     return info;
 }
@@ -808,6 +809,33 @@ void AiAgentController::executeActionFromResponse(const QString &response, const
             }
         }
         return;
+    }
+
+    // 6. Check for [ACTION:CLOSE_GAPS]
+    static const QRegularExpression gapRegex(QStringLiteral(R"(\[ACTION:(?:CLOSE_GAPS|MAGNETIC_MODE)[|: ]*([^\]]*)\])"), QRegularExpression::CaseInsensitiveOption);
+    if (gapRegex.match(response).hasMatch()) {
+        if (m_controller) {
+            m_controller->setSnapEnabled(true);
+            m_controller->closeAllGaps();
+            appendChatMessage(QStringLiteral("assistant"),
+                              tr("🧲 Modo magnético ativado e todos os espaços vazios da timeline foram fechados com sucesso!"));
+        }
+        return;
+    }
+
+    // 7. Fallback Intent Detection for magnetic mode / gaps
+    if (pLower.contains(QStringLiteral("modo magnetico")) || pLower.contains(QStringLiteral("modo magnético")) ||
+        pLower.contains(QStringLiteral("magnetico")) || pLower.contains(QStringLiteral("magnético")) ||
+        pLower.contains(QStringLiteral("fechar espaco")) || pLower.contains(QStringLiteral("fechar espacos")) ||
+        pLower.contains(QStringLiteral("fechar espaço")) || pLower.contains(QStringLiteral("fechar espaços")) ||
+        pLower.contains(QStringLiteral("juntar clips")) || pLower.contains(QStringLiteral("grudar clips"))) {
+        if (m_controller) {
+            m_controller->setSnapEnabled(true);
+            m_controller->closeAllGaps();
+            appendChatMessage(QStringLiteral("assistant"),
+                              tr("🧲 Modo magnético ativado e todos os espaços vazios da timeline foram fechados com sucesso!"));
+            return;
+        }
     }
 }
 
