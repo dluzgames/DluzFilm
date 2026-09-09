@@ -400,7 +400,7 @@ ThemedDialog {
                             columns: 2
                             spacing: Theme.spacingMd
 
-                            // Prompt 1: Lower Third
+                            // Prompt 1: Editar Vídeo da Timeline
                             Rectangle {
                                 width: 340
                                 height: 50
@@ -408,6 +408,54 @@ ThemedDialog {
                                 color: promptMouse1.containsMouse ? Theme.panelAccent : Theme.panelBackground
                                 border.width: Theme.borderWidth
                                 border.color: promptMouse1.containsMouse ? Theme.primary : Theme.panelBorder
+
+                                Row {
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.spacingMd
+                                    spacing: Theme.spacingSm
+
+                                    Text {
+                                        text: "🪄"
+                                        font.pixelSize: 18
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                    Column {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 2
+                                        Text {
+                                            text: qsTr("Editar Vídeo da Timeline")
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSizeXs
+                                            font.weight: Font.DemiBold
+                                            color: Theme.foreground
+                                        }
+                                        Text {
+                                            text: qsTr("Whisper + Silêncios + Legendas + HyperFrames")
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSizeTiny
+                                            color: Theme.mutedForeground
+                                        }
+                                    }
+                                }
+                                MouseArea {
+                                    id: promptMouse1
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        AiAgent.autoEditTimelineVideo(-1, -1)
+                                    }
+                                }
+                            }
+
+                            // Prompt 2: HyperFrames Contextuais
+                            Rectangle {
+                                width: 340
+                                height: 50
+                                radius: Theme.radiusSm
+                                color: promptMouse2.containsMouse ? Theme.panelAccent : Theme.panelBackground
+                                border.width: Theme.borderWidth
+                                border.color: promptMouse2.containsMouse ? Theme.primary : Theme.panelBorder
 
                                 Row {
                                     anchors.fill: parent
@@ -423,14 +471,14 @@ ThemedDialog {
                                         anchors.verticalCenter: parent.verticalCenter
                                         spacing: 2
                                         Text {
-                                            text: qsTr("Criar Lower Third HyperFrames")
+                                            text: qsTr("HyperFrames Contextuais")
                                             font.family: Theme.fontFamily
                                             font.pixelSize: Theme.fontSizeXs
                                             font.weight: Font.DemiBold
                                             color: Theme.foreground
                                         }
                                         Text {
-                                            text: qsTr("Vinheta animada com Chroma Key automático")
+                                            text: qsTr("Análise Whisper + Animações ancoradas na fala")
                                             font.family: Theme.fontFamily
                                             font.pixelSize: Theme.fontSizeTiny
                                             color: Theme.mutedForeground
@@ -438,13 +486,12 @@ ThemedDialog {
                                     }
                                 }
                                 MouseArea {
-                                    id: promptMouse1
+                                    id: promptMouse2
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        promptInput.text = "Crie uma vinheta lower third estilizada com o nome DLuz Games"
-                                        promptInput.forceActiveFocus()
+                                        AiAgent.analyzeVideoAndAddContextualHyperframes(-1, -1)
                                     }
                                 }
                             }
@@ -799,9 +846,34 @@ ThemedDialog {
                 spacing: Theme.spacingXs
 
                 ThemedChip {
+                    text: "🪄 Editar Vídeo da Timeline"
+                    variant: "primary"
+                    onClicked: {
+                        AiAgent.autoEditTimelineVideo(-1, -1)
+                    }
+                }
+
+                ThemedChip {
+                    text: "🎬 HyperFrames Contextuais"
+                    variant: "primary"
+                    onClicked: {
+                        AiAgent.analyzeVideoAndAddContextualHyperframes(-1, -1)
+                    }
+                }
+
+                ThemedChip {
+                    text: "⚡ Gerar Vídeo Completo"
+                    variant: "primary"
+                    onClicked: {
+                        promptInput.text = "Gere um vídeo completo sobre "
+                        promptInput.forceActiveFocus()
+                    }
+                }
+
+                ThemedChip {
                     text: "🚀 Antigravity CLI"
                     selected: AiAgent.provider === "antigravity"
-                    variant: "primary"
+                    variant: "outline"
                     onClicked: {
                         AiAgent.provider = "antigravity"
                         promptInput.text = "Crie uma vinheta com texto kinetic animado para o canal"

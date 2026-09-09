@@ -300,16 +300,23 @@ QString AiAgentController::buildSystemPrompt() const
     QString info = QStringLiteral("Você é o Agente IA oficial do editor de vídeo Dluz Film.\n"
                                   "Você ajuda o usuário a editar vídeos, criar gráficos com HyperFrames, sintetizar voz clonada (OmniVoice), gerar cenas com OmniFlash e cortar silêncios.\n"
                                   "Seja amigável, direto, técnico e use o tom autêntico da DLuz Games.\n"
-                                  "Quando o usuário pedir para criar um elemento, você pode incluir comandos especiais no final da sua resposta:\n"
-                                  "- Criar lower third / vinheta: [ACTION:HYPERFRAMES|lower_third|Título|Subtítulo]\n"
-                                  "- Criar card de título: [ACTION:HYPERFRAMES|title_card|Título|Subtítulo]\n"
-                                  "- Criar card social: [ACTION:HYPERFRAMES|social_card|Nome|@handle]\n"
+                                  "Quando o usuário pedir uma ação, inclua a tag especial correspondente no final da sua resposta:\n"
+                                  "- Produzir vídeo COMPLETO sobre qualquer assunto, tema ou notícia (ex: 'gere um vídeo sobre...', 'crie um vídeo de...', 'faça um vídeo sobre...'): [ACTION:AUTO_PRODUCE|tema_ou_link_do_artigo||omnivoice|16:9]\n"
+                                  "- Editar vídeo da timeline (fazer tudo: transcrever Whisper, cortar silêncio, legenda MrBeast e HyperFrames contextuais): [ACTION:AUTO_EDIT_TIMELINE]\n"
+                                  "- Analisar vídeo da timeline e adicionar HyperFrames contextuais aos tópicos falados: [ACTION:ANALYZE_AND_ADD_HYPERFRAMES]\n"
+                                  "- Criar lower third / vinheta isolada: [ACTION:HYPERFRAMES|lower_third|Título|Subtítulo]\n"
+                                  "- Criar card de título isolado: [ACTION:HYPERFRAMES|title_card|Título|Subtítulo]\n"
+                                  "- Criar card social isolado: [ACTION:HYPERFRAMES|social_card|Nome|@handle]\n"
                                   "- Remover silêncios: [ACTION:REMOVE_SILENCE|-30|0.3|0.08]\n"
                                   "- Sintetizar voz com OmniVoice: [ACTION:CLONE_VOICE|omnivoice|texto completo aqui]\n"
                                   "- Gerar vídeo OmniFlash: [ACTION:OMNIFLASH|16:9|prompt da cena em inglês]\n"
                                   "- Ativar Chroma Key no clip selecionado: [ACTION:CHROMA_KEY]\n"
-                                  "- Fechar espaços / Modo magnético: [ACTION:CLOSE_GAPS]\n"
-                                  "- Modo Hard (Produzir vídeo completo a partir de link ou matéria): [ACTION:AUTO_PRODUCE|link_artigo|link_gameplay|omnivoice|16:9]\n");
+                                  "- Fechar espaços / Modo magnético: [ACTION:CLOSE_GAPS]\n\n"
+                                  "REGRAS OBRIGATÓRIAS:\n"
+                                  "1. Se o usuário pedir para 'gerar um vídeo', 'criar um vídeo', 'fazer um vídeo' sobre algum assunto (ex: 'Gere um vídeo sobre a escalação da seleção brasileira de hoje'), NUNCA emita [ACTION:HYPERFRAMES]! Use SEMPRE [ACTION:AUTO_PRODUCE|tema_aqui||omnivoice|16:9] para produzir o vídeo completo.\n"
+                                  "2. [ACTION:HYPERFRAMES] só deve ser emitido quando o usuário pedir explicitamente apenas um card, vinheta ou lower-third.\n"
+                                  "3. Se houver um vídeo na timeline e o usuário pedir para editar ou fazer tudo, use [ACTION:AUTO_EDIT_TIMELINE].\n"
+                                  "4. Se o usuário pedir para analisar o vídeo e colocar HyperFrames contextuais, use [ACTION:ANALYZE_AND_ADD_HYPERFRAMES].\n");
 
     return info;
 }
@@ -649,10 +656,61 @@ void AiAgentController::handleAiReply()
 
 void AiAgentController::executeActionFromResponse(const QString &response, const QString &userPrompt)
 {
-    // 1. Check for [ACTION:HYPERFRAMES|...]
+    const QString pLower = userPrompt.toLower().trimmed();
+
+    const bool wantsFullVideo = (pLower.contains(QStringLiteral("gere um vídeo")) || pLower.contains(QStringLiteral("gerar vídeo")) ||
+                                 pLower.contains(QStringLiteral("gere um video")) || pLower.contains(QStringLiteral("gerar video")) ||
+                                 pLower.contains(QStringLiteral("crie um vídeo")) || pLower.contains(QStringLiteral("criar vídeo")) ||
+                                 pLower.contains(QStringLiteral("crie um video")) || pLower.contains(QStringLiteral("criar video")) ||
+                                 pLower.contains(QStringLiteral("faça um vídeo")) || pLower.contains(QStringLiteral("fazer vídeo")) ||
+                                 pLower.contains(QStringLiteral("faça um video")) || pLower.contains(QStringLiteral("fazer video")) ||
+                                 pLower.contains(QStringLiteral("produza um vídeo")) || pLower.contains(QStringLiteral("produzir vídeo")) ||
+                                 pLower.contains(QStringLiteral("produza um video")) || pLower.contains(QStringLiteral("produzir video"))) &&
+                                !pLower.contains(QStringLiteral("apenas vinheta")) && !pLower.contains(QStringLiteral("apenas card")) &&
+                                !pLower.contains(QStringLiteral("apenas lower third")) && !pLower.contains(QStringLiteral("só a vinheta")) &&
+                                !pLower.contains(QStringLiteral("só o card"));
+
+    // 1. Check for [ACTION:AUTO_EDIT_TIMELINE]
+    static const QRegularExpression autoEditRegex(QStringLiteral(R"(\[ACTION:(?:AUTO_EDIT_TIMELINE|EDIT_TIMELINE|EDITAR_TIMELINE)[^\]]*\])"), QRegularExpression::CaseInsensitiveOption);
+    if (autoEditRegex.match(response).hasMatch()) {
+        autoEditTimelineVideo(-1, -1);
+        return;
+    }
+
+    // 2. Check for [ACTION:ANALYZE_AND_ADD_HYPERFRAMES]
+    static const QRegularExpression analyzeHfRegex(QStringLiteral(R"(\[ACTION:(?:ANALYZE_AND_ADD_HYPERFRAMES|CONTEXTUAL_HYPERFRAMES|ANALISAR_HYPERFRAMES)[^\]]*\])"), QRegularExpression::CaseInsensitiveOption);
+    if (analyzeHfRegex.match(response).hasMatch()) {
+        analyzeVideoAndAddContextualHyperframes(-1, -1);
+        return;
+    }
+
+    // 3. Check for [ACTION:AUTO_PRODUCE|article|gameplay|voice|format]
+    static const QRegularExpression autoProduceRegex(QStringLiteral(R"(\[ACTION:(?:AUTO_PRODUCE|MODO_HARD)[|:]([^\]]+)\])"), QRegularExpression::CaseInsensitiveOption);
+    const auto autoProduceMatch = autoProduceRegex.match(response);
+    if (autoProduceMatch.hasMatch()) {
+        const QString rawContent = autoProduceMatch.captured(1).trimmed();
+        const QStringList parts = rawContent.split(QLatin1Char('|'));
+        const QString article = parts.value(0).trimmed();
+        const QString gameplay = parts.value(1).trimmed();
+        const QString voice = parts.size() > 2 ? parts.value(2).trimmed() : QStringLiteral("omnivoice");
+        const QString format = parts.size() > 3 ? parts.value(3).trimmed() : QStringLiteral("16:9");
+        startHardModeProduction(article.isEmpty() ? userPrompt : article, gameplay, voice, QStringLiteral("pt"), format);
+        return;
+    }
+
+    // 4. Check for [ACTION:HYPERFRAMES|...]
     static const QRegularExpression hfRegex(QStringLiteral(R"(\[ACTION:HYPERFRAMES[|:]([^\]]+)\])"), QRegularExpression::CaseInsensitiveOption);
     const auto hfMatch = hfRegex.match(response);
     if (hfMatch.hasMatch()) {
+        // Se o usuário pediu a produção de um vídeo COMPLETO, não devemos gerar apenas uma vinheta isolada!
+        if (wantsFullVideo) {
+            appendChatMessage(QStringLiteral("assistant"),
+                              tr("🎬 Pedido de produção de vídeo completo identificado! Iniciando produção autônoma de vídeo com locução, trilha, gameplay e gráficos..."));
+            const QString format = (pLower.contains(QStringLiteral("vertical")) || pLower.contains(QStringLiteral("tiktok")) || pLower.contains(QStringLiteral("shorts")) || pLower.contains(QStringLiteral("9:16"))) ? QStringLiteral("9:16") : QStringLiteral("16:9");
+            startHardModeProduction(userPrompt, QString(), QStringLiteral("omnivoice"), QStringLiteral("pt"), format);
+            return;
+        }
+
         const QString rawContent = hfMatch.captured(1).trimmed();
         const QStringList parts = rawContent.split(QLatin1Char('|'));
         QString tmpl = QStringLiteral("lower_third");
@@ -762,7 +820,6 @@ void AiAgentController::executeActionFromResponse(const QString &response, const
     }
 
     // 6. Fallback Intent Detection (if model didn't emit [ACTION:...])
-    const QString pLower = userPrompt.toLower();
     if (pLower.contains(QStringLiteral("lower third")) || pLower.contains(QStringLiteral("lower-third")) ||
         pLower.contains(QStringLiteral("vinheta")) || pLower.contains(QStringLiteral("card de título")) ||
         pLower.contains(QStringLiteral("card social"))) {
@@ -824,41 +881,34 @@ void AiAgentController::executeActionFromResponse(const QString &response, const
         return;
     }
 
-    // 7. Check for [ACTION:AUTO_PRODUCE|article|gameplay|voice|format]
-    static const QRegularExpression autoProduceRegex(QStringLiteral(R"(\[ACTION:(?:AUTO_PRODUCE|MODO_HARD)[|:]([^\]]+)\])"), QRegularExpression::CaseInsensitiveOption);
-    const auto autoProduceMatch = autoProduceRegex.match(response);
-    if (autoProduceMatch.hasMatch()) {
-        const QString rawContent = autoProduceMatch.captured(1).trimmed();
-        const QStringList parts = rawContent.split(QLatin1Char('|'));
-        const QString article = parts.value(0).trimmed();
-        const QString gameplay = parts.value(1).trimmed();
-        const QString voice = parts.size() > 2 ? parts.value(2).trimmed() : QStringLiteral("omnivoice");
-        const QString format = parts.size() > 3 ? parts.value(3).trimmed() : QStringLiteral("16:9");
-        startHardModeProduction(article, gameplay, voice, QStringLiteral("pt"), format);
+    // 7. Fallback Intent Detection for Timeline AI Editing (Full Edit)
+    if (pLower.contains(QStringLiteral("editar o vídeo")) || pLower.contains(QStringLiteral("edite o vídeo")) ||
+        pLower.contains(QStringLiteral("editar vídeo")) || pLower.contains(QStringLiteral("edite o video")) ||
+        pLower.contains(QStringLiteral("editar o video")) || pLower.contains(QStringLiteral("edite esse vídeo")) ||
+        pLower.contains(QStringLiteral("editar esse vídeo")) || pLower.contains(QStringLiteral("fazer tudo no vídeo")) ||
+        pLower.contains(QStringLiteral("editar timeline")) || pLower.contains(QStringLiteral("editar vídeo da timeline")) ||
+        pLower.contains(QStringLiteral("edite tudo"))) {
+        autoEditTimelineVideo(-1, -1);
         return;
     }
 
-    // 8. Fallback Intent Detection for magnetic mode / gaps
-    if (pLower.contains(QStringLiteral("modo magnetico")) || pLower.contains(QStringLiteral("modo magnético")) ||
-        pLower.contains(QStringLiteral("magnetico")) || pLower.contains(QStringLiteral("magnético")) ||
-        pLower.contains(QStringLiteral("fechar espaco")) || pLower.contains(QStringLiteral("fechar espacos")) ||
-        pLower.contains(QStringLiteral("fechar espaço")) || pLower.contains(QStringLiteral("fechar espaços")) ||
-        pLower.contains(QStringLiteral("juntar clips")) || pLower.contains(QStringLiteral("grudar clips"))) {
-        if (m_controller) {
-            m_controller->setSnapEnabled(true);
-            m_controller->closeAllGaps();
-            appendChatMessage(QStringLiteral("assistant"),
-                              tr("🧲 Modo magnético ativado e todos os espaços vazios da timeline foram fechados com sucesso!"));
-            return;
-        }
+    // 8. Fallback Intent Detection for Contextual HyperFrames Analysis
+    if (pLower.contains(QStringLiteral("analisar o vídeo e adicionar hyperframes")) ||
+        pLower.contains(QStringLiteral("analise o vídeo e adicione hyperframes")) ||
+        pLower.contains(QStringLiteral("analisar video e adicionar hyperframes")) ||
+        pLower.contains(QStringLiteral("analise o video e adicione hyperframes")) ||
+        pLower.contains(QStringLiteral("adicionar hyperframes")) ||
+        pLower.contains(QStringLiteral("adicione hyperframes")) ||
+        pLower.contains(QStringLiteral("hyperframes contextuais")) ||
+        pLower.contains(QStringLiteral("gráficos contextuais")) ||
+        pLower.contains(QStringLiteral("graficos contextuais")) ||
+        (pLower.contains(QStringLiteral("analis")) && pLower.contains(QStringLiteral("hyperframe")))) {
+        analyzeVideoAndAddContextualHyperframes(-1, -1);
+        return;
     }
 
-    // 9. Fallback Intent Detection for Hard Mode (Modo Hard) when user sends links or keywords
-    if (pLower.contains(QStringLiteral("modo hard")) || pLower.contains(QStringLiteral("hard mode")) ||
-        pLower.contains(QStringLiteral("criar vídeo")) || pLower.contains(QStringLiteral("criar video")) ||
-        pLower.contains(QStringLiteral("montar vídeo")) || pLower.contains(QStringLiteral("montar video")) ||
-        pLower.contains(QStringLiteral("produzir vídeo")) || pLower.contains(QStringLiteral("produzir video"))) {
-
+    // 9. Fallback Intent Detection for Full Video Generation (Hard Mode / Auto Producer)
+    if (wantsFullVideo) {
         static const QRegularExpression urlRegex(QStringLiteral(R"(https?://[^\s]+)"), QRegularExpression::CaseInsensitiveOption);
         auto urlIter = urlRegex.globalMatch(userPrompt);
         QStringList foundUrls;
@@ -866,23 +916,21 @@ void AiAgentController::executeActionFromResponse(const QString &response, const
             foundUrls << urlIter.next().captured(0);
         }
 
+        QString articleUrl = userPrompt;
+        QString gameplayUrl;
         if (!foundUrls.isEmpty()) {
-            QString articleUrl;
-            QString gameplayUrl;
             for (const QString &u : foundUrls) {
                 if (u.contains(QStringLiteral("youtube.com")) || u.contains(QStringLiteral("youtu.be"))) {
                     if (gameplayUrl.isEmpty()) gameplayUrl = u;
                 } else {
-                    if (articleUrl.isEmpty()) articleUrl = u;
+                    if (articleUrl == userPrompt) articleUrl = u;
                 }
             }
-            if (articleUrl.isEmpty() && !foundUrls.isEmpty()) {
-                articleUrl = foundUrls.first();
-            }
-            const QString format = (pLower.contains(QStringLiteral("vertical")) || pLower.contains(QStringLiteral("tiktok")) || pLower.contains(QStringLiteral("shorts")) || pLower.contains(QStringLiteral("9:16"))) ? QStringLiteral("9:16") : QStringLiteral("16:9");
-            startHardModeProduction(articleUrl, gameplayUrl, QStringLiteral("omnivoice"), QStringLiteral("pt"), format);
-            return;
         }
+
+        const QString format = (pLower.contains(QStringLiteral("vertical")) || pLower.contains(QStringLiteral("tiktok")) || pLower.contains(QStringLiteral("shorts")) || pLower.contains(QStringLiteral("9:16"))) ? QStringLiteral("9:16") : QStringLiteral("16:9");
+        startHardModeProduction(articleUrl, gameplayUrl, QStringLiteral("omnivoice"), QStringLiteral("pt"), format);
+        return;
     }
 }
 
@@ -1744,6 +1792,367 @@ bool AiAgentController::applyTimelineManifest(const QString &manifestPath)
                          "O projeto está pronto! Dê Play na barra de espaço para conferir, refinar os cortes e exportar."));
 
     emit hardModeFinished(true, manifestPath, tr("Vídeo completo montado na timeline com sucesso!"));
+    return true;
+}
+
+QVariantMap AiAgentController::findMainTimelineVideoClip(int preferredTrack, int preferredClip) const
+{
+    if (!m_controller)
+        return {};
+
+    // 1. Verificar clipe indicado pelos parâmetros se for vídeo
+    if (preferredTrack >= 0 && preferredClip >= 0) {
+        const QVariantMap clip = m_controller->clipAt(preferredTrack, preferredClip);
+        if (!clip.isEmpty() && clip.value(QStringLiteral("kind")).toString() == QStringLiteral("video")) {
+            QVariantMap result = clip;
+            result.insert(QStringLiteral("trackIndex"), preferredTrack);
+            result.insert(QStringLiteral("clipIndex"), preferredClip);
+            return result;
+        }
+    }
+
+    // 2. Verificar clipe atualmente selecionado na timeline
+    const int selT = m_controller->selectedTrack();
+    const int selC = m_controller->selectedClip();
+    if (selT >= 0 && selC >= 0) {
+        const QVariantMap clip = m_controller->clipAt(selT, selC);
+        if (!clip.isEmpty() && clip.value(QStringLiteral("kind")).toString() == QStringLiteral("video")) {
+            QVariantMap result = clip;
+            result.insert(QStringLiteral("trackIndex"), selT);
+            result.insert(QStringLiteral("clipIndex"), selC);
+            return result;
+        }
+    }
+
+    // 3. Fallback: procurar o primeiro clipe de vídeo existente em qualquer trilha do projeto
+    const auto *proj = m_controller->project();
+    if (!proj)
+        return {};
+
+    for (int t = 0; t < proj->tracks().size(); ++t) {
+        const auto &track = proj->tracks().at(t);
+        if (track.type == drift::TrackType::Video) {
+            for (int c = 0; c < track.clips.size(); ++c) {
+                const auto &clip = track.clips.at(c);
+                if (clip.type == drift::ClipType::Video && !clip.path.isEmpty() && QFile::exists(clip.path)) {
+                    QVariantMap result = m_controller->clipAt(t, c);
+                    result.insert(QStringLiteral("trackIndex"), t);
+                    result.insert(QStringLiteral("clipIndex"), c);
+                    return result;
+                }
+            }
+        }
+    }
+
+    return {};
+}
+
+void AiAgentController::autoEditTimelineVideo(int trackIndex, int clipIndex)
+{
+    if (m_isBusy)
+        return;
+
+    const QVariantMap clip = findMainTimelineVideoClip(trackIndex, clipIndex);
+    if (clip.isEmpty()) {
+        appendChatMessage(QStringLiteral("assistant"),
+                          tr("⚠️ Nenhum clipe de vídeo encontrado na timeline para edição.\n"
+                             "Por favor, importe ou selecione um vídeo na timeline antes de solicitar a edição completa."));
+        return;
+    }
+
+    const QString videoPath = clip.value(QStringLiteral("path")).toString();
+    const double inPoint = clip.value(QStringLiteral("inPoint")).toDouble();
+    const double duration = clip.value(QStringLiteral("duration")).toDouble();
+    const double timelineStart = clip.value(QStringLiteral("start")).toDouble();
+
+    setBusy(true, tr("Iniciando Edição Completa da Timeline com IA..."));
+    appendChatMessage(QStringLiteral("assistant"),
+                      tr("🪄 **Iniciando Edição Completa com IA:**\n"
+                         "- 🎙️ Transcrição obrigatória com Whisper IA\n"
+                         "- 🧠 Análise semântica contextual dos tópicos falados\n"
+                         "- ✂️ Detecção e corte de silêncios\n"
+                         "- 📝 Geração de legendas dinâmicas palavra por palavra (MrBeast)\n"
+                         "- 🎬 Renderização e injeção de HyperFrames contextuais com Chroma Key"));
+
+    auto *proc = new QProcess(this);
+    setupSilentProcess(proc);
+
+    QString script = QCoreApplication::applicationDirPath() + QStringLiteral("/scripts/timeline_ai_editor.py");
+    if (!QFile::exists(script)) {
+        script = QStringLiteral("h:/Editor dluz/scripts/timeline_ai_editor.py");
+    }
+    if (!QFile::exists(script)) {
+        script = QStringLiteral("D:/DluzEditorSource/scripts/timeline_ai_editor.py");
+    }
+
+    QStringList args{
+        script,
+        QStringLiteral("--video"), videoPath,
+        QStringLiteral("--in-point"), QString::number(inPoint, 'f', 3),
+        QStringLiteral("--duration"), QString::number(duration, 'f', 3),
+        QStringLiteral("--timeline-start"), QString::number(timelineStart, 'f', 3),
+        QStringLiteral("--mode"), QStringLiteral("full_edit"),
+        QStringLiteral("--lang"), QStringLiteral("pt")
+    };
+
+    auto fullOutput = std::make_shared<QString>();
+
+    connect(proc, &QProcess::readyReadStandardOutput, this, [this, proc, fullOutput]() {
+        const QString out = QString::fromUtf8(proc->readAllStandardOutput());
+        fullOutput->append(out);
+        const QStringList lines = out.split(QLatin1Char('\n'));
+        for (const QString &line : lines) {
+            const QString trimmed = line.trimmed();
+            if (trimmed.startsWith(QStringLiteral("PROGRESS:"))) {
+                const QString payload = trimmed.mid(9);
+                const int sep = payload.indexOf(QLatin1Char('|'));
+                if (sep != -1) {
+                    const int pct = payload.left(sep).toInt();
+                    const QString status = payload.mid(sep + 1);
+                    emit timelineAiEditProgress(pct, status);
+                    this->setBusy(true, QStringLiteral("[%1%] %2").arg(pct).arg(status));
+                }
+            }
+        }
+    });
+
+    connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc, fullOutput](int exitCode, QProcess::ExitStatus exitStatus) {
+        Q_UNUSED(exitStatus);
+        fullOutput->append(QString::fromUtf8(proc->readAllStandardOutput()));
+        const QString stderrStr = QString::fromUtf8(proc->readAllStandardError());
+        proc->deleteLater();
+        this->setBusy(false);
+
+        QString manifestFile;
+        const QStringList lines = fullOutput->split(QLatin1Char('\n'));
+        for (const QString &line : lines) {
+            const QString trimmed = line.trimmed();
+            if (trimmed.startsWith(QStringLiteral("TIMELINE_MANIFEST:"))) {
+                manifestFile = trimmed.mid(18).trimmed();
+            }
+        }
+
+        if (exitCode == 0 && !manifestFile.isEmpty() && QFile::exists(manifestFile)) {
+            applyTimelineEditManifest(manifestFile);
+        } else {
+            const QString err = stderrStr.isEmpty() ? *fullOutput : stderrStr;
+            appendChatMessage(QStringLiteral("assistant"),
+                              tr("❌ Falha na edição completa do vídeo:\n%1").arg(err));
+            emit timelineAiEditFinished(false, QString(), err);
+        }
+    });
+
+    QString pythonExe = QStandardPaths::findExecutable(QStringLiteral("python"));
+    if (pythonExe.isEmpty() || !QFile::exists(pythonExe)) {
+        pythonExe = QStringLiteral("C:/Python314/python.exe");
+    }
+
+    proc->start(pythonExe, args);
+}
+
+void AiAgentController::analyzeVideoAndAddContextualHyperframes(int trackIndex, int clipIndex)
+{
+    if (m_isBusy)
+        return;
+
+    const QVariantMap clip = findMainTimelineVideoClip(trackIndex, clipIndex);
+    if (clip.isEmpty()) {
+        appendChatMessage(QStringLiteral("assistant"),
+                          tr("⚠️ Nenhum clipe de vídeo encontrado na timeline para analisar.\n"
+                             "Por favor, importe ou selecione um vídeo na timeline antes de solicitar a análise contextual de HyperFrames."));
+        return;
+    }
+
+    const QString videoPath = clip.value(QStringLiteral("path")).toString();
+    const double inPoint = clip.value(QStringLiteral("inPoint")).toDouble();
+    const double duration = clip.value(QStringLiteral("duration")).toDouble();
+    const double timelineStart = clip.value(QStringLiteral("start")).toDouble();
+
+    setBusy(true, tr("Analisando vídeo da timeline com Whisper IA..."));
+    appendChatMessage(QStringLiteral("assistant"),
+                      tr("🎬 **Análise Contextual de HyperFrames Iniciada:**\n"
+                         "- 🎙️ Transcrevendo a fala do vídeo com Whisper IA\n"
+                         "- 🔍 Mapeando momentos exatos onde temas, pessoas e tópicos são citados\n"
+                         "- 🎨 Renderizando Title Cards e Lower-Thirds estilizados\n"
+                         "- 🟢 Injetando na timeline com Chroma Key automático sem fundo verde"));
+
+    auto *proc = new QProcess(this);
+    setupSilentProcess(proc);
+
+    QString script = QCoreApplication::applicationDirPath() + QStringLiteral("/scripts/timeline_ai_editor.py");
+    if (!QFile::exists(script)) {
+        script = QStringLiteral("h:/Editor dluz/scripts/timeline_ai_editor.py");
+    }
+    if (!QFile::exists(script)) {
+        script = QStringLiteral("D:/DluzEditorSource/scripts/timeline_ai_editor.py");
+    }
+
+    QStringList args{
+        script,
+        QStringLiteral("--video"), videoPath,
+        QStringLiteral("--in-point"), QString::number(inPoint, 'f', 3),
+        QStringLiteral("--duration"), QString::number(duration, 'f', 3),
+        QStringLiteral("--timeline-start"), QString::number(timelineStart, 'f', 3),
+        QStringLiteral("--mode"), QStringLiteral("contextual_hyperframes"),
+        QStringLiteral("--lang"), QStringLiteral("pt")
+    };
+
+    auto fullOutput = std::make_shared<QString>();
+
+    connect(proc, &QProcess::readyReadStandardOutput, this, [this, proc, fullOutput]() {
+        const QString out = QString::fromUtf8(proc->readAllStandardOutput());
+        fullOutput->append(out);
+        const QStringList lines = out.split(QLatin1Char('\n'));
+        for (const QString &line : lines) {
+            const QString trimmed = line.trimmed();
+            if (trimmed.startsWith(QStringLiteral("PROGRESS:"))) {
+                const QString payload = trimmed.mid(9);
+                const int sep = payload.indexOf(QLatin1Char('|'));
+                if (sep != -1) {
+                    const int pct = payload.left(sep).toInt();
+                    const QString status = payload.mid(sep + 1);
+                    emit timelineAiEditProgress(pct, status);
+                    this->setBusy(true, QStringLiteral("[%1%] %2").arg(pct).arg(status));
+                }
+            }
+        }
+    });
+
+    connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc, fullOutput](int exitCode, QProcess::ExitStatus exitStatus) {
+        Q_UNUSED(exitStatus);
+        fullOutput->append(QString::fromUtf8(proc->readAllStandardOutput()));
+        const QString stderrStr = QString::fromUtf8(proc->readAllStandardError());
+        proc->deleteLater();
+        this->setBusy(false);
+
+        QString manifestFile;
+        const QStringList lines = fullOutput->split(QLatin1Char('\n'));
+        for (const QString &line : lines) {
+            const QString trimmed = line.trimmed();
+            if (trimmed.startsWith(QStringLiteral("TIMELINE_MANIFEST:"))) {
+                manifestFile = trimmed.mid(18).trimmed();
+            }
+        }
+
+        if (exitCode == 0 && !manifestFile.isEmpty() && QFile::exists(manifestFile)) {
+            applyTimelineEditManifest(manifestFile);
+        } else {
+            const QString err = stderrStr.isEmpty() ? *fullOutput : stderrStr;
+            appendChatMessage(QStringLiteral("assistant"),
+                              tr("❌ Falha na análise e geração de HyperFrames:\n%1").arg(err));
+            emit timelineAiEditFinished(false, QString(), err);
+        }
+    });
+
+    QString pythonExe = QStandardPaths::findExecutable(QStringLiteral("python"));
+    if (pythonExe.isEmpty() || !QFile::exists(pythonExe)) {
+        pythonExe = QStringLiteral("C:/Python314/python.exe");
+    }
+
+    proc->start(pythonExe, args);
+}
+
+bool AiAgentController::applyTimelineEditManifest(const QString &manifestPath)
+{
+    if (!m_controller)
+        return false;
+
+    QFile f(manifestPath);
+    if (!f.open(QIODevice::ReadOnly)) {
+        appendChatMessage(QStringLiteral("assistant"),
+                          tr("❌ Erro ao abrir manifesto de edição: %1").arg(manifestPath));
+        return false;
+    }
+
+    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+    f.close();
+
+    if (!doc.isObject()) {
+        appendChatMessage(QStringLiteral("assistant"),
+                          tr("❌ Formato inválido do manifesto de edição."));
+        return false;
+    }
+
+    const QJsonObject root = doc.object();
+    const QString mode = root.value(QStringLiteral("mode")).toString();
+    const bool removeSilence = root.value(QStringLiteral("remove_silence")).toBool();
+    const QJsonObject silParams = root.value(QStringLiteral("silence_params")).toObject();
+    const QString subtitlesPath = root.value(QStringLiteral("subtitles_srt")).toString();
+    const QJsonArray overlays = root.value(QStringLiteral("overlays")).toArray();
+
+    auto *proj = m_controller->project();
+    if (!proj)
+        return false;
+
+    // 1. Remoção de Silêncios se solicitado no modo full_edit
+    if (removeSilence) {
+        const double th = silParams.value(QStringLiteral("threshold")).toDouble(-30.0);
+        const double md = silParams.value(QStringLiteral("min_duration")).toDouble(0.3);
+        const double pad = silParams.value(QStringLiteral("padding")).toDouble(0.08);
+        m_controller->removeSilence(-1, -1, th, md, pad);
+    }
+
+    // 2. Importação de Legendas Dinâmicas se existirem
+    if (!subtitlesPath.isEmpty() && QFile::exists(subtitlesPath)) {
+        m_controller->importSubtitleFile(QUrl::fromLocalFile(subtitlesPath), 0.0);
+    }
+
+    // 3. Injeção de Overlays HyperFrames sincronizados
+    auto countTracksOfType = [proj](drift::TrackType tType) -> int {
+        int c = 0;
+        for (const auto &t : proj->tracks()) {
+            if (t.type == tType) c++;
+        }
+        return c;
+    };
+
+    while (countTracksOfType(drift::TrackType::Video) < 2) {
+        m_controller->addTrack(QStringLiteral("video"));
+    }
+
+    int overlayTrackIdx = 0;
+    for (int i = 0; i < proj->tracks().size(); ++i) {
+        if (proj->tracks().at(i).type == drift::TrackType::Video) {
+            overlayTrackIdx = i; // top track
+            break;
+        }
+    }
+
+    int countOverlaysAdded = 0;
+    for (const auto &oVal : overlays) {
+        const QJsonObject oObj = oVal.toObject();
+        const QString clipPath = oObj.value(QStringLiteral("path")).toString();
+        const double atSec = oObj.value(QStringLiteral("timeline_start")).toDouble();
+        const QString effect = oObj.value(QStringLiteral("effect")).toString(QStringLiteral("key.chroma"));
+
+        if (!clipPath.isEmpty() && QFile::exists(clipPath)) {
+            m_controller->importMediaToTimeline(clipPath, atSec, overlayTrackIdx, effect);
+            countOverlaysAdded++;
+        }
+    }
+
+    // Reposiciona playhead no início
+    m_controller->setPlayheadSeconds(0.0);
+
+    if (mode == QStringLiteral("full_edit")) {
+        appendChatMessage(QStringLiteral("assistant"),
+                          tr("🎉 **Edição Completa Concluída com Sucesso!**\n"
+                             "- 🎙️ Transcrição neural Whisper concluída\n"
+                             "- ✂️ Silêncios e pausas cortados na timeline\n"
+                             "- 📝 Legendas dinâmicas estilo MrBeast inseridas\n"
+                             "- 🎬 %1 HyperFrames contextuais sincronizados com Chroma Key ativo\n\n"
+                             "Dê play na barra de espaço para conferir o resultado!").arg(countOverlaysAdded));
+    } else {
+        appendChatMessage(QStringLiteral("assistant"),
+                          tr("🎉 **HyperFrames Contextuais Adicionados com Sucesso!**\n"
+                             "- 🎙️ Áudio analisado via Whisper IA com timestamps precisos\n"
+                             "- 🎬 %1 elementos gráficos (Title Cards / Lower-Thirds) ancorados aos tópicos falados com Chroma Key ativo.\n\n"
+                             "Dê play na barra de espaço para conferir!").arg(countOverlaysAdded));
+    }
+
+    emit timelineAiEditFinished(true, manifestPath, tr("Edição da timeline concluída com sucesso!"));
     return true;
 }
 

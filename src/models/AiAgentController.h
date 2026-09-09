@@ -126,6 +126,11 @@ public:
                                              const QString &aspectRatio = QStringLiteral("16:9"));
     Q_INVOKABLE bool applyTimelineManifest(const QString &manifestPath);
 
+    // Timeline AI Video Editor (Whisper transcription + Contextual HyperFrames & Full Edit)
+    Q_INVOKABLE void autoEditTimelineVideo(int trackIndex = -1, int clipIndex = -1);
+    Q_INVOKABLE void analyzeVideoAndAddContextualHyperframes(int trackIndex = -1, int clipIndex = -1);
+    Q_INVOKABLE bool applyTimelineEditManifest(const QString &manifestPath);
+
 signals:
     void providerChanged();
     void keysChanged();
@@ -146,6 +151,8 @@ signals:
     void dynamicSubtitlesFinished(bool success, const QString &srtPath, const QString &message);
     void hardModeProgress(int percent, const QString &statusText);
     void hardModeFinished(bool success, const QString &manifestPath, const QString &message);
+    void timelineAiEditProgress(int percent, const QString &statusText);
+    void timelineAiEditFinished(bool success, const QString &manifestPath, const QString &message);
 
 private slots:
     void handleAiReply();
@@ -157,6 +164,7 @@ private:
     void appendChatMessage(const QString &role, const QString &text, const QString &action = QString());
     QString buildSystemPrompt() const;
     void executeActionFromResponse(const QString &response, const QString &userPrompt = QString());
+    QVariantMap findMainTimelineVideoClip(int preferredTrack = -1, int preferredClip = -1) const;
 
     AppController *m_controller = nullptr;
     QNetworkAccessManager m_nam;
