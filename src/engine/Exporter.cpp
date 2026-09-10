@@ -1768,8 +1768,16 @@ bool Exporter::gifAvailable()
 ExportSettings Exporter::defaultSettings()
 {
     ExportSettings s;
-    // Prefer first available CRF codec starting at h264.
-    const QStringList prefer = {QStringLiteral("h264"), QStringLiteral("h265"), QStringLiteral("vp9"),
+    // Prefer hardware accelerated encoders (NVENC / QSV / AMF / VideoToolbox) when available,
+    // then fall back to software encoders (x264 / x265).
+    const QStringList prefer = {QStringLiteral("h264_nvenc"),
+                                QStringLiteral("h265_nvenc"),
+                                QStringLiteral("h264_videotoolbox"),
+                                QStringLiteral("h264_qsv"),
+                                QStringLiteral("h264_amf"),
+                                QStringLiteral("h264"),
+                                QStringLiteral("h265"),
+                                QStringLiteral("vp9"),
                                 QStringLiteral("av1_svt")};
     for (const QString &id : prefer) {
         const QVariantMap m = videoCodecById(id);
