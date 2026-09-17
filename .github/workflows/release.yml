@@ -184,14 +184,13 @@ jobs:
               return name
 
           tag = release.get("tag_name") or ""
-          title = release.get("name") or f"Drift {tag}"
+          title = release.get("name") or f"Dluz Film {tag}"
           url = release["html_url"]
           notes = github_md_to_discord(release.get("body") or "")
-          description = clamp(notes or "New Drift release.", EMBED_DESC_LIMIT)
+          description = clamp(notes or "Novo release do Dluz Film.", EMBED_DESC_LIMIT)
 
           downloads = [
-              "[All assets](" + url + ")",
-              "[Flathub](https://flathub.org/apps/org.cutwire.Drift)",
+              "[Todos os binários e assets](" + url + ")"
           ]
           for asset in release.get("assets") or []:
               label = asset_label(asset.get("name") or "")
@@ -200,7 +199,7 @@ jobs:
               downloads.append(f"[{label}]({asset['browser_download_url']})")
 
           payload = {
-              "username": "Drift",
+              "username": "Dluz Film",
               "avatar_url": ICON,
               "allowed_mentions": {"parse": []},
               "embeds": [
@@ -211,8 +210,8 @@ jobs:
                       "color": DRIFT_GOLD,
                       "timestamp": release.get("published_at"),
                       "author": {
-                          "name": "CutWire Studios",
-                          "url": "https://github.com/CutWire-Studios/Drift",
+                          "name": "DLuz Games",
+                          "url": "https://github.com/dluzgames/DluzFilm",
                           "icon_url": ICON,
                       },
                       "thumbnail": {"url": ICON},
@@ -232,7 +231,7 @@ jobs:
               data=json.dumps(payload).encode("utf-8"),
               headers={
                   "Content-Type": "application/json",
-                  "User-Agent": "CutWire-Drift-Release-Notify",
+                  "User-Agent": "DLuzFilm-Release-Notify",
               },
               method="POST",
           )

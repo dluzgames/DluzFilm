@@ -1,14 +1,14 @@
 name: Feature request
-description: Suggest an improvement or new capability for Drift
+description: Suggest an improvement or new capability for Dluz Film
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for sharing an idea for Drift. Pick a category, then describe what you'd like.
+        Thanks for sharing an idea for Dluz Film. Pick a category, then describe what you'd like.
 
-        **Before filing:** check the [unreleased changelog](https://github.com/CutWire-Studios/Drift/blob/main/CHANGELOG.md) — the feature may already be in progress or landed on `main` since the last release.
+        **Before filing:** check the [unreleased changelog](https://github.com/dluzgames/DluzFilm/releases) — the feature may already be in progress or landed on `main` since the last release.
 
   - type: dropdown
     id: category
@@ -27,7 +27,7 @@ body:
   - type: textarea
     id: wish
     attributes:
-      label: I wish Drift could…
+      label: I wish Dluz Film could…
       description: Describe the feature as if you're telling a friend what you want.
       placeholder: e.g. …add a beat-synced zoom that follows the music automatically
     validations:

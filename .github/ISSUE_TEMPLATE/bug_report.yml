@@ -1,15 +1,15 @@
 name: Bug report
-description: Something in Drift isn't working as expected
+description: Something in Dluz Film isn't working as expected
 title: "[Bug]: "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping improve Drift. Fill in the fields below.
+        Thanks for helping improve Dluz Film. Fill in the fields below.
         You can attach screenshots or screen recordings on any text box.
 
-        **Before filing:** check the [unreleased changelog](https://github.com/CutWire-Studios/Drift/blob/main/CHANGELOG.md) — the bug may already be fixed on `main` since the last release.
+        **Before filing:** check the [unreleased changelog](https://github.com/dluzgames/DluzFilm/releases) — the bug may already be fixed on `main` since the last release.
 
   - type: dropdown
     id: os
@@ -33,7 +33,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Drift version
+      label: Dluz Film version
       description: Use the release tag / package version you installed.
       placeholder: e.g. 0.6.0
     validations:
@@ -42,7 +42,7 @@ body:
   - type: dropdown
     id: variant
     attributes:
-      label: How did you install Drift?
+      label: How did you install Dluz Film?
       options:
         - Flatpak
         - AppImage

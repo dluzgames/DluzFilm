@@ -2,7 +2,7 @@
 
 Developer documentation for building, testing, packaging, and extending Drift. If you just want to
 *use* Drift, see the [README](../README.md) — installers are on the
-[releases page](https://github.com/CutWire-Studios/Drift/releases/latest).
+[releases page](https://github.com/dluzgames/DluzFilm/releases/latest).
 
 Built with **Qt 6**, **QML**, and **FFmpeg**. Preview and export share one compositor, so what you
 see is what you get.
