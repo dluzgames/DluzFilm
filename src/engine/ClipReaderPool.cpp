@@ -111,16 +111,20 @@ void ClipReaderPool::setReadAheadUs(drift::TimeUs readAheadUs)
     m_readAheadUs.store(qMax<drift::TimeUs>(0, readAheadUs), std::memory_order_relaxed);
 }
 
-void ClipReaderPool::setHardwareDecodeMode(ClipReader::HardwareDecodeMode mode,
-                                           drift::hwaccel::Backend backend)
+void ClipReaderPool::resetVideoDecoders()
 {
-    ClipReader::setHardwareDecodeMode(mode, backend);
-
     QMutexLocker lock(&m_mutex);
     for (auto &entry : m_videoWorkers) {
         QMetaObject::invokeMethod(entry.second->worker, "resetVideoDecoders",
                                   Qt::BlockingQueuedConnection);
     }
+}
+
+void ClipReaderPool::setHardwareDecodeMode(ClipReader::HardwareDecodeMode mode,
+                                           drift::hwaccel::Backend backend)
+{
+    ClipReader::setHardwareDecodeMode(mode, backend);
+    resetVideoDecoders();
 }
 
 void ClipReaderPool::warmVideoFrames(const QList<VideoRequest> &requests)
@@ -136,7 +140,9 @@ void ClipReaderPool::warmVideoFrames(const QList<VideoRequest> &requests)
         QMetaObject::invokeMethod(ensureWorker(m_videoWorkers, request.path).worker, "decodePreviewVideo",
                                   Qt::QueuedConnection,
                                   Q_ARG(quint64, request.streamId), Q_ARG(drift::TimeUs, request.sourceUs),
-                                  Q_ARG(int, request.maxWidth), Q_ARG(int, request.maxHeight));
+                                  Q_ARG(int, request.maxWidth), Q_ARG(int, request.maxHeight),
+                                  Q_ARG(QString, QString()), Q_ARG(int, 15), Q_ARG(bool, false),
+                                  Q_ARG(int, request.rotationCorrection));
     }
 }
 
@@ -159,7 +165,7 @@ qint64 ClipReaderPool::decodeWaitNs()
 
 QImage ClipReaderPool::readVideoFrame(const QString &path, quint64 streamId, drift::TimeUs sourceUs,
                                       int maxWidth, int maxHeight, const QString &stabilizePath,
-                                      int stabilizeSmoothing, bool stabilizeTripod)
+                                      int stabilizeSmoothing, bool stabilizeTripod, int rotationCorrection)
 {
     if (path.isEmpty())
         return {};
@@ -182,7 +188,8 @@ QImage ClipReaderPool::readVideoFrame(const QString &path, quint64 streamId, dri
     QMetaObject::invokeMethod(worker, "decodeVideo", Qt::BlockingQueuedConnection, Q_RETURN_ARG(QImage, frame),
                                Q_ARG(quint64, streamId), Q_ARG(drift::TimeUs, sourceUs),
                                Q_ARG(int, maxWidth), Q_ARG(int, maxHeight),
-                               Q_ARG(QString, stabilizePath), Q_ARG(int, stabilizeSmoothing), Q_ARG(bool, stabilizeTripod));
+                               Q_ARG(QString, stabilizePath), Q_ARG(int, stabilizeSmoothing), Q_ARG(bool, stabilizeTripod),
+                               Q_ARG(int, rotationCorrection));
     t_decodeWaitNs += decodeWait.nsecsElapsed();
 
     // Decode one frame beyond the current position while the caller composites
@@ -199,7 +206,8 @@ QImage ClipReaderPool::readVideoFrame(const QString &path, quint64 streamId, dri
 PreviewVideoFrame ClipReaderPool::readPreviewVideoFrame(const QString &path, quint64 streamId,
                                                         drift::TimeUs sourceUs, int maxWidth, int maxHeight,
                                                         const QString &stabilizePath,
-                                                        int stabilizeSmoothing, bool stabilizeTripod)
+                                                        int stabilizeSmoothing, bool stabilizeTripod,
+                                                        int rotationCorrection)
 {
     if (path.isEmpty())
         return {};
@@ -220,7 +228,7 @@ PreviewVideoFrame ClipReaderPool::readPreviewVideoFrame(const QString &path, qui
                                Q_ARG(drift::TimeUs, sourceUs), Q_ARG(int, maxWidth),
                                Q_ARG(int, maxHeight),
                                Q_ARG(QString, stabilizePath), Q_ARG(int, stabilizeSmoothing),
-                               Q_ARG(bool, stabilizeTripod));
+                               Q_ARG(bool, stabilizeTripod), Q_ARG(int, rotationCorrection));
     t_decodeWaitNs += decodeWait.nsecsElapsed();
 
     worker->requestPrefetchPreview(streamId, maxWidth, maxHeight,
@@ -290,3 +298,23 @@ void ClipReaderPool::retainActivePaths(const QSet<QString> &videoPaths, const QS
     for (const std::unique_ptr<WorkerEntry> &entry : evicted)
         stopWorkerEntry(*entry);
 }
+
+namespace drift {
+
+MediaCodecSurfaceDecodeBlock::MediaCodecSurfaceDecodeBlock()
+{
+#ifdef Q_OS_ANDROID
+    ClipReader::setSurfaceDecodeAllowed(false);
+    ClipReaderPool::instance().resetVideoDecoders();
+#endif
+}
+
+MediaCodecSurfaceDecodeBlock::~MediaCodecSurfaceDecodeBlock()
+{
+#ifdef Q_OS_ANDROID
+    ClipReader::setSurfaceDecodeAllowed(true);
+    ClipReaderPool::instance().resetVideoDecoders();
+#endif
+}
+
+} // namespace drift

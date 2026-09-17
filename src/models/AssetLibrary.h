@@ -7,6 +7,7 @@
 #include <QHash>
 #include <QSet>
 #include <QStringList>
+#include <QThreadPool>
 #include <QUrl>
 
 namespace drift {
@@ -43,6 +44,7 @@ public:
     Q_ENUM(Role)
 
     explicit AssetLibrary(QObject *parent = nullptr);
+    ~AssetLibrary() override;
 
     void setProject(drift::Project *project);
     drift::Project *project() const { return m_project; }
@@ -68,12 +70,17 @@ public:
     static bool isVideoPath(const QString &path);
     static bool isAudioPath(const QString &path);
     static bool isImagePath(const QString &path);
+    static bool isVectorPath(const QString &path);
+    static bool isModelPath(const QString &path);
     static bool isMediaPath(const QString &path);
     // The same set spelled as a QFileDialog name filter, e.g. "Media files (*.mp4 *.mov ...)".
     Q_INVOKABLE QString mediaNameFilter() const;
     // Import local paths and return the asset ids involved (new or already-present).
     QStringList importLocalPaths(const QStringList &paths);
-    bool isImportPending(const QString &assetId) const;
+    // Q_INVOKABLE because QML has to know when a freshly imported row is still a placeholder:
+    // importFinished fires before the off-thread probe fills width/height/fps/duration, so
+    // anything sizing a canvas or a clip from a new asset must wait on this.
+    Q_INVOKABLE bool isImportPending(const QString &assetId) const;
     // Registers media the app rendered itself (freeze frames and the like). The asset is already
     // complete, so this skips the probe and thumbnail jobs the import path runs. Returns its id.
     QString addGeneratedAsset(drift::MediaAsset asset);
@@ -88,6 +95,15 @@ public:
     Q_INVOKABLE void sortByKind();
     // Display name in the media bin. Does not rename the file on disk.
     Q_INVOKABLE bool setAssetName(int index, const QString &name);
+    // Bin-preview rotation correction, snapped to the nearest 90°; -1 resets to the file's own
+    // probed rotation. Forces the cached thumbnail/filmstrip to regenerate against it. Not
+    // invokable from QML on purpose: like setAssetName, the caller owns the undo snapshot
+    // (AppController::setAssetRotation).
+    bool setAssetRotation(int index, int degrees);
+    // Non-destructive bin-preview trim (microseconds); trimOutUs < 0 resets to the full duration.
+    // Never touches the source file — applied to a clip's srcIn/srcOut when placed on the
+    // timeline (see AppController::applyAssetLayout). Undo snapshot is the caller's, as above.
+    bool setAssetTrim(int index, qint64 trimInUs, qint64 trimOutUs);
     int indexOfPath(const QString &path) const;
     // Drops the row from the project's asset table. Callers own the undo
     // snapshot and the in-use check; this only touches the bin.
@@ -124,9 +140,17 @@ signals:
     void importFinished(int materialized, int failed);
     // Fired when probe/thumb/audio metadata lands so unlink affordances can refresh.
     void assetMetadataChanged(const QString &assetId);
+    // Narrower than assetMetadataChanged: only for a change to a *card-level* field the bin grid
+    // snapshots (name/kind/duration/path — see MediaAssetsTab.qml's combinedItems), so its
+    // listener knows a real rebuild is warranted. A thumbnail-only change (rotate, a thumbnail
+    // regenerating) does not emit this — those refresh their own delegate's image in place.
+    void assetCardChanged(const QString &assetId);
     // Result of startReplaceProbe. Nothing has been applied yet; the caller decides whether the
     // probed media is an acceptable stand-in and calls applyProbedSource if so.
     void assetSourceProbed(const QString &assetId, const drift::MediaAsset &filled, bool ok);
+    // A file that passed the suffix whitelist and then could not be read at all, so its bin row
+    // was withdrawn. Without this the row just disappears and the user is told nothing.
+    void assetImportFailed(const QString &name);
 
 private:
     // `sourceUris` maps an absolute path to the content:// URI it was materialized from, so the
@@ -154,6 +178,7 @@ private:
     void snapshotAssets();
     QList<QString> currentPaths() const;
     QList<QString> currentFolderIds() const;
+    QList<QString> currentEdits() const;
     const drift::MediaAsset *assetAtIndex(int index) const;
     drift::MediaAsset *assetAtIndex(int index);
 
@@ -165,8 +190,21 @@ private:
     QList<QString> m_syncedOrder;
     QList<QString> m_syncedPaths;
     QList<QString> m_syncedFolderIds;
+    // Per-row rotation override and trim, for the same reason: an undone bin rotate/trim leaves
+    // order, path and folder alone, and the card (thumbnail, duration text) has to follow it.
+    QList<QString> m_syncedEdits;
     QString m_importFolderId;
     QSet<QString> m_importPending;
     QSet<QString> m_thumbPending;
+    // Asset ids whose settings (rotation/trim) changed again while a thumbnail job for them was
+    // already in flight — the in-flight job's result is stale the moment it lands, so its landing
+    // immediately kicks a fresh job rather than silently keeping the outdated image.
+    QSet<QString> m_thumbStale;
     QSet<QString> m_audioProbePending;
+    // Probe and thumbnail jobs run here rather than on the global pool, because the destructor
+    // has to be able to wait for them: each captures `this` and posts its result back with
+    // QMetaObject::invokeMethod(this, ...). Nothing joined them before, so a job outliving the
+    // object called into freed memory — the tests are where that bites, since AssetLibrary is a
+    // stack local per test function and the address is handed straight to the next one.
+    QThreadPool m_jobs;
 };

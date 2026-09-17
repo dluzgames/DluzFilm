@@ -16,55 +16,6 @@ namespace drift {
 
 namespace {
 
-QJsonObject shapeStyleToJson(const ShapeStyle &s)
-{
-    return QJsonObject{
-        {QStringLiteral("kind"), shapeKindToString(s.kind)},
-        {QStringLiteral("fillKind"), shapeFillKindToString(s.fillKind)},
-        {QStringLiteral("fill"), s.fill.name(QColor::HexArgb)},
-        {QStringLiteral("fillSecondary"), s.fillSecondary.name(QColor::HexArgb)},
-        {QStringLiteral("gradientAngle"), s.gradientAngle},
-        {QStringLiteral("stroke"), s.stroke.name(QColor::HexArgb)},
-        {QStringLiteral("strokeWidth"), s.strokeWidth},
-        {QStringLiteral("strokeStyle"), shapeStrokeStyleToString(s.strokeStyle)},
-        {QStringLiteral("cornerRadius"), s.cornerRadius},
-        {QStringLiteral("points"), s.points},
-        {QStringLiteral("innerRatio"), s.innerRatio},
-        {QStringLiteral("headSize"), s.headSize},
-        {QStringLiteral("thickness"), s.thickness},
-        {QStringLiteral("tailX"), s.tailX},
-        {QStringLiteral("tailSize"), s.tailSize},
-    };
-}
-
-ShapeStyle shapeStyleFromJson(const QJsonObject &o)
-{
-    ShapeStyle s;
-    if (o.isEmpty())
-        return s;
-    s.kind = shapeKindFromString(o.value(QStringLiteral("kind")).toString());
-    // Everything below defaults to the struct value, so a project saved before shapes gained
-    // gradients, dashes and geometry knobs still loads.
-    s.fillKind = shapeFillKindFromString(
-        o.value(QStringLiteral("fillKind")).toString(shapeFillKindToString(s.fillKind)));
-    s.fill = QColor(o.value(QStringLiteral("fill")).toString(s.fill.name(QColor::HexArgb)));
-    s.fillSecondary = QColor(
-        o.value(QStringLiteral("fillSecondary")).toString(s.fillSecondary.name(QColor::HexArgb)));
-    s.gradientAngle = o.value(QStringLiteral("gradientAngle")).toDouble(s.gradientAngle);
-    s.stroke = QColor(o.value(QStringLiteral("stroke")).toString(s.stroke.name(QColor::HexArgb)));
-    s.strokeWidth = o.value(QStringLiteral("strokeWidth")).toDouble(s.strokeWidth);
-    s.strokeStyle = shapeStrokeStyleFromString(
-        o.value(QStringLiteral("strokeStyle")).toString(shapeStrokeStyleToString(s.strokeStyle)));
-    s.cornerRadius = o.value(QStringLiteral("cornerRadius")).toDouble(s.cornerRadius);
-    s.points = o.value(QStringLiteral("points")).toInt(s.points);
-    s.innerRatio = o.value(QStringLiteral("innerRatio")).toDouble(s.innerRatio);
-    s.headSize = o.value(QStringLiteral("headSize")).toDouble(s.headSize);
-    s.thickness = o.value(QStringLiteral("thickness")).toDouble(s.thickness);
-    s.tailX = o.value(QStringLiteral("tailX")).toDouble(s.tailX);
-    s.tailSize = o.value(QStringLiteral("tailSize")).toDouble(s.tailSize);
-    return s;
-}
-
 QJsonObject maskToJson(const Mask &m)
 {
     QJsonArray points;
@@ -188,7 +139,7 @@ QJsonObject transitionToJson(const Transition &t)
 
     // "kind" holds the transition package id. The pre-shader enum serialized the same strings,
     // so projects written by older builds keep loading.
-    return QJsonObject{
+    QJsonObject o{
         {QStringLiteral("id"), t.id},
         {QStringLiteral("fromClipId"), t.fromClipId},
         {QStringLiteral("toClipId"), t.toClipId},
@@ -196,6 +147,16 @@ QJsonObject transitionToJson(const Transition &t)
         {QStringLiteral("parameters"), params},
         {QStringLiteral("durationUs"), static_cast<double>(t.durationUs)},
     };
+    // Written only when set, so a project with no eased transition round-trips byte-identically
+    // to what older builds produced.
+    if (t.easingCurve != FadeCurve::Linear) {
+        o.insert(QStringLiteral("easingCurve"), fadeCurveToString(t.easingCurve));
+        if ((t.easingCurve == FadeCurve::Custom && !t.easingShape.isEmpty())
+            || t.easingCurve == FadeCurve::Bezier) {
+            o.insert(QStringLiteral("easingShape"), t.easingShape.toJson());
+        }
+    }
+    return o;
 }
 
 Transition transitionFromJson(const QJsonObject &o)
@@ -213,6 +174,9 @@ Transition transitionFromJson(const QJsonObject &o)
     for (auto it = params.constBegin(); it != params.constEnd(); ++it)
         t.parameters.insert(it.key(), it.value().toVariant());
     t.durationUs = static_cast<TimeUs>(o.value(QStringLiteral("durationUs")).toDouble(t.durationUs));
+    if (o.contains(QStringLiteral("easingCurve")))
+        t.easingCurve = fadeCurveFromString(o.value(QStringLiteral("easingCurve")).toString());
+    t.easingShape = FadeShape::fromJson(o.value(QStringLiteral("easingShape")));
     return t;
 }
 
@@ -269,7 +233,7 @@ QList<SubtitleCue> subtitleCuesFromJson(const QJsonArray &array)
 
 QJsonObject clipToJson(const Clip &clip)
 {
-    return QJsonObject{
+    QJsonObject json{
         {QStringLiteral("id"), clip.id},
         {QStringLiteral("assetId"), clip.assetId},
         {QStringLiteral("linkId"), clip.linkId},
@@ -327,9 +291,16 @@ QJsonObject clipToJson(const Clip &clip)
         {QStringLiteral("width"), keyframesToJson(clip.transformW)},
         {QStringLiteral("height"), keyframesToJson(clip.transformH)},
         {QStringLiteral("rotation"), keyframesToJson(clip.rotation)},
+        {QStringLiteral("rotationCorrection"), clip.rotationCorrection},
         {QStringLiteral("effects"), effectsToJson(clip.effects)},
         {QStringLiteral("audioEffects"), effectsToJson(clip.audioEffects)},
     };
+    // Only vector clips carry a document, and an inline one can run to megabytes.
+    if (clip.type == ClipType::Vector)
+        json.insert(QStringLiteral("vector"), clip.vector.toJson());
+    if (clip.type == ClipType::Model3d)
+        json.insert(QStringLiteral("model3d"), clip.model3d.toJson());
+    return json;
 }
 
 KeyframeTrack<double> singleKeyframe(double value)
@@ -383,6 +354,8 @@ Clip clipFromJsonV2(const QJsonObject &object, int canvasW = 1920, int canvasH =
     clip.textStyle = textStyleFromJson(object.value(QStringLiteral("textStyle")).toObject());
     clip.subtitleCues = subtitleCuesFromJson(object.value(QStringLiteral("subtitleCues")).toArray());
     clip.shapeStyle = shapeStyleFromJson(object.value(QStringLiteral("shapeStyle")).toObject());
+    clip.vector = VectorSource::fromJson(object.value(QStringLiteral("vector")).toObject());
+    clip.model3d = Model3dSource::fromJson(object.value(QStringLiteral("model3d")).toObject());
     clip.path = object.value(QStringLiteral("path")).toString();
     clip.thumbnailPath = object.value(QStringLiteral("thumbnailPath")).toString();
     clip.filmstripPath = object.value(QStringLiteral("filmstripPath")).toString();
@@ -422,7 +395,7 @@ Clip clipFromJsonV2(const QJsonObject &object, int canvasW = 1920, int canvasH =
     clip.fadeInUs = static_cast<TimeUs>(object.value(QStringLiteral("fadeInUs")).toDouble());
     clip.fadeOutUs = static_cast<TimeUs>(object.value(QStringLiteral("fadeOutUs")).toDouble());
     clip.fadeCurve = fadeCurveFromString(object.value(QStringLiteral("fadeCurve")).toString());
-    clip.fadeShape = FadeShape::fromJson(object.value(QStringLiteral("fadeShape")).toArray());
+    clip.fadeShape = FadeShape::fromJson(object.value(QStringLiteral("fadeShape")));
     clip.animIn = clipAnimationFromJson(object.value(QStringLiteral("animIn")).toObject());
     clip.animOut = clipAnimationFromJson(object.value(QStringLiteral("animOut")).toObject());
     clip.timelineStart = static_cast<TimeUs>(object.value(QStringLiteral("timelineStartUs")).toDouble());
@@ -437,6 +410,7 @@ Clip clipFromJsonV2(const QJsonObject &object, int canvasW = 1920, int canvasH =
     clip.pan = object.value(QStringLiteral("pan")).toDouble(0.0);
     clip.opacity = keyframesFromJson(object.value(QStringLiteral("opacity")).toObject());
     clip.rotation = keyframesFromJson(object.value(QStringLiteral("rotation")).toObject());
+    clip.rotationCorrection = object.value(QStringLiteral("rotationCorrection")).toInt(0);
     clip.effects = effectsFromJson(object.value(QStringLiteral("effects")).toArray());
     clip.audioEffects = effectsFromJson(object.value(QStringLiteral("audioEffects")).toArray());
 
@@ -492,6 +466,9 @@ QJsonObject assetToJson(const MediaAsset &asset)
         {QStringLiteral("height"), asset.height},
         {QStringLiteral("fps"), asset.fps},
         {QStringLiteral("rotationDegrees"), asset.rotationDegrees},
+        {QStringLiteral("rotationOverride"), asset.rotationOverride},
+        {QStringLiteral("trimInUs"), static_cast<double>(asset.trimInUs)},
+        {QStringLiteral("trimOutUs"), static_cast<double>(asset.trimOutUs)},
         {QStringLiteral("sampleRate"), asset.sampleRate},
         {QStringLiteral("channels"), asset.channels},
         {QStringLiteral("codecName"), asset.codecName},
@@ -523,6 +500,9 @@ MediaAsset assetFromJsonV2(const QJsonObject &object)
     asset.height = object.value(QStringLiteral("height")).toInt();
     asset.fps = object.value(QStringLiteral("fps")).toDouble();
     asset.rotationDegrees = object.value(QStringLiteral("rotationDegrees")).toInt();
+    asset.rotationOverride = object.value(QStringLiteral("rotationOverride")).toInt(-1);
+    asset.trimInUs = static_cast<TimeUs>(object.value(QStringLiteral("trimInUs")).toDouble(0));
+    asset.trimOutUs = static_cast<TimeUs>(object.value(QStringLiteral("trimOutUs")).toDouble(-1));
     asset.sampleRate = object.value(QStringLiteral("sampleRate")).toInt();
     asset.channels = object.value(QStringLiteral("channels")).toInt();
     asset.codecName = object.value(QStringLiteral("codecName")).toString();
@@ -640,6 +620,21 @@ void detachClip(Clip &clip)
     for (auto it = clip.mask.keyframes.begin(); it != clip.mask.keyframes.end(); ++it)
         it.value().detachSharedData();
     clip.subtitleCues.detach();
+    clip.vector.slotValues.detach();
+    clip.vector.keyframes.detach();
+    for (auto it = clip.vector.keyframes.begin(); it != clip.vector.keyframes.end(); ++it)
+        it.value().detachSharedData();
+    clip.model3d.animations.detach();
+    clip.model3d.keyframes.detach();
+    for (auto it = clip.model3d.keyframes.begin(); it != clip.model3d.keyframes.end(); ++it)
+        it.value().detachSharedData();
+    clip.textStyle.keyframes.detach();
+    for (auto it = clip.textStyle.keyframes.begin(); it != clip.textStyle.keyframes.end(); ++it)
+        it.value().detachSharedData();
+    clip.shapeStyle.layers.detach();
+    clip.shapeStyle.keyframes.detach();
+    for (auto it = clip.shapeStyle.keyframes.begin(); it != clip.shapeStyle.keyframes.end(); ++it)
+        it.value().detachSharedData();
     clip.effects.detach();
     for (Effect &effect : clip.effects)
         detachEffect(effect);
@@ -867,6 +862,14 @@ Project Project::fromJson(const QJsonObject &object, QString *errorOut)
         // combinable. Runs after the v4 pass, which is what mints the track ids a lane needs.
         migrateClipMasksToAdjustmentLanes(project);
     }
+    // Version 6 added ClipType::Vector. Nothing to migrate; the bump exists so an older build
+    // refuses the file instead of loading those clips as videos with no path.
+    // Version 7 turned the flat text look into shading layers and the animIn/animOut kinds into
+    // preset slots; textStyleFromJson migrates both in place.
+    // Version 8 did the same for shapes: the flat fill/stroke became the shading stack and the
+    // stroke moved from a half-width inset to an Inside layer, so a translucent stroke now sits
+    // over the fill instead of beside it. shapeStyleFromJson migrates in place.
+    // Version 9 added ClipType::Model3d. Nothing to migrate; same reasoning as version 6.
 
     project.m_bookmarks.clear();
     const QJsonArray bookmarksArray = object.value(QStringLiteral("bookmarks")).toArray();

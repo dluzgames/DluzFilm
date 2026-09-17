@@ -136,6 +136,24 @@ QString normalizeDecodeMode(const QString &mode)
     return {};
 }
 
+// The one sentence the picker row, the confirm dialog and the playback toast all say, so the
+// user meets the same explanation wherever they run into this.
+QString offGpuDecodeNote(drift::hwaccel::Backend backend,
+                         const drift::hwaccel::RenderMatchInfo &match)
+{
+    const QString name = QString::fromLatin1(drift::hwaccel::name(backend));
+    if (!match.decodeGpu.isEmpty() && !match.renderGpu.isEmpty()) {
+        return PlaybackEngine::tr("%1 decodes on %2, but Drift draws on %3. Every frame is copied "
+                                  "through system memory, which is slower than decoding on the "
+                                  "graphics card that draws.")
+            .arg(name, match.decodeGpu, match.renderGpu);
+    }
+    return PlaybackEngine::tr("%1 decodes on a different graphics card than the one Drift draws "
+                              "on. Every frame is copied through system memory, which is slower "
+                              "than decoding on the graphics card that draws.")
+        .arg(name);
+}
+
 ClipReader::HardwareDecodeMode decodeModeFromString(const QString &mode)
 {
     if (mode == QStringLiteral("software"))
@@ -175,7 +193,7 @@ PlaybackEngine::PlaybackEngine(QObject *parent)
                                                      decodeBackendFromString(m_decodeMode));
     m_hwFallbackCount = ClipReader::hardwareFallbackCount();
 
-    m_compositor.setDropLateFrames(!isQualityMode());
+    m_compositor.setDropLateFrames(true);
     m_compositor.setAdaptiveQuality(isAutoQuality());
     m_compositor.setStats(&m_stats);
 
@@ -190,8 +208,6 @@ PlaybackEngine::PlaybackEngine(QObject *parent)
     connect(&m_playheadTimer, &QTimer::timeout, this, &PlaybackEngine::onPlayheadTick);
     connect(&m_compositeTimer, &QTimer::timeout, this, &PlaybackEngine::onCompositeTick);
     connect(&m_compositor, &CompositorService::frameReady, this, &PlaybackEngine::onFrameReady);
-    connect(&m_compositor, &CompositorService::compositeFinished, this,
-            &PlaybackEngine::onCompositeFinished);
 
     // The GPU compositor needs Qt Quick's global share context, which does not
     // exist until the first QQuickWindow initialises — after this constructor. So
@@ -245,9 +261,6 @@ void PlaybackEngine::onAudioSampleRateChanged()
     m_sampleRate = m_audio.sampleRate();
     m_mixer.resetClipAudioState();
     m_audioStreamGeneration.fetch_add(1, std::memory_order_release);
-    if (isQualityMode())
-        return;
-
     m_clock.reset(m_playheadUs, m_sampleRate);
     if (m_playing) {
         m_sinkPlayedUsOffset = m_audio.processedUSecs();
@@ -277,11 +290,9 @@ void PlaybackEngine::setPlayheadUs(drift::TimeUs us)
     m_lastRequestedFrameUs = -1;
     // reset() clears the running flag; resume the clock if we are still in play
     // so edits/seeks during playback don't freeze audio at one timeline spot.
-    // Quality mode has no clock — its loop picks the new playhead up on the next
-    // completed frame.
-    if (!m_playing)
+    if (!m_playing) {
         refreshFrame();
-    else if (!isQualityMode()) {
+    } else {
         m_sinkPlayedUsOffset = m_audio.processedUSecs();
         m_clock.start();
     }
@@ -327,35 +338,6 @@ void PlaybackEngine::setPreviewQuality(const QString &quality)
     m_compositor.setAdaptiveQuality(isAutoQuality());
     emit previewQualityChanged();
     refreshFrame();
-}
-
-QString PlaybackEngine::playbackMode() const
-{
-    return m_playbackMode;
-}
-
-void PlaybackEngine::setPlaybackMode(const QString &mode)
-{
-    const QString normalized = mode.toLower();
-    if (normalized != QStringLiteral("fast") && normalized != QStringLiteral("quality")) {
-        qWarning("PlaybackEngine: ignoring unknown playback mode '%s'", qPrintable(mode));
-        return;
-    }
-    if (m_playbackMode == normalized)
-        return;
-
-    m_playbackMode = normalized;
-    QSettings().setValue(QStringLiteral("preview/playbackMode"), m_playbackMode);
-    m_compositor.setDropLateFrames(!isQualityMode());
-    emit playbackModeChanged();
-
-    // The two modes drive the playhead from different sources and differ on
-    // whether the sink runs, so switching mid-playback restarts the transport
-    // from where it currently sits.
-    if (m_playing) {
-        pause();
-        play();
-    }
 }
 
 void PlaybackEngine::setPlaybackRate(double rate)
@@ -406,15 +388,22 @@ QString PlaybackEngine::decodeMode() const
 QVariantList PlaybackEngine::decodeModes() const
 {
     QVariantList modes;
-    auto append = [&modes](const QString &id, const QString &label) {
-        modes.append(QVariantMap{{QStringLiteral("id"), id}, {QStringLiteral("label"), label}});
+    auto append = [&modes](const QString &id, const QString &label, bool warn = false,
+                           const QString &note = {}) {
+        modes.append(QVariantMap{{QStringLiteral("id"), id},
+                                 {QStringLiteral("label"), label},
+                                 {QStringLiteral("warn"), warn},
+                                 {QStringLiteral("note"), note}});
     };
     append(QStringLiteral("auto"), tr("Auto"));
     append(QStringLiteral("software"), tr("Software"));
     // Only backends whose device opens here, so every listed choice is one that runs.
     for (const drift::hwaccel::Backend backend : drift::hwaccel::availableDecodeBackends()) {
+        const drift::hwaccel::RenderMatchInfo match = drift::hwaccel::describeRenderMatch(backend);
+        const bool warn = match.match == drift::hwaccel::RenderMatch::Mismatch;
         append(kHwPrefix + drift::hwaccel::id(backend),
-               tr("Hardware (%1)").arg(QString::fromLatin1(drift::hwaccel::name(backend))));
+               tr("Hardware (%1)").arg(QString::fromLatin1(drift::hwaccel::name(backend))), warn,
+               warn ? offGpuDecodeNote(backend, match) : QString());
     }
     return modes;
 }
@@ -436,6 +425,7 @@ void PlaybackEngine::setDecodeMode(const QString &mode)
     // A new path gets a fresh benefit of the doubt: a fallback under the old one says
     // nothing about this one, and leaving the count behind would suppress the notice.
     m_hwFallbackCount = ClipReader::hardwareFallbackCount();
+    m_zeroCopyWarned = false;
     emit decodeModeChanged();
     refreshFrame();
 }
@@ -458,6 +448,28 @@ void PlaybackEngine::checkHardwareFallback()
                                     : QString::fromLatin1(drift::hwaccel::name(backend)));
 }
 
+// A pin that decodes on the wrong GPU still decodes — the frames just take the long way to
+// OpenGL, which looks like nothing at all until playback is measured. Called per composited
+// frame beside checkHardwareFallback(), and latched so it speaks once per choice.
+void PlaybackEngine::checkZeroCopyFallback()
+{
+    if (m_zeroCopyWarned || !m_decodeMode.startsWith(kHwPrefix))
+        return;
+    if (GpuCompositor::previewUploadPathId() != QStringLiteral("cpu-roundtrip"))
+        return;
+    // cpu-roundtrip is also the ordinary path for a frame no importer was ever offered — a
+    // software decode, or a surface format none of them take. Only a decline reason means an
+    // importer looked at this frame and turned it down.
+    const QString reason = GpuCompositor::zeroCopyDeclineReason();
+    if (reason.isEmpty())
+        return;
+
+    m_zeroCopyWarned = true;
+    const drift::hwaccel::Backend backend = decodeBackendFromString(m_decodeMode);
+    emit zeroCopyUnavailable(offGpuDecodeNote(backend, drift::hwaccel::describeRenderMatch(backend)),
+                             reason);
+}
+
 // Ask the GPU compositor whether it is up, and republish the answer when it
 // changes. Also the recovery path: the share context can appear after the
 // preview's one and only composite request has already failed, so a compositor
@@ -472,8 +484,12 @@ void PlaybackEngine::probeGpuCompositor()
     // The compositor's context is the one that actually draws, so its vendor is the
     // authoritative answer to "which GPU should be decoding". Startup seeds this from a
     // throwaway probe; this corrects it if the two ever disagree.
-    if (!info.vendor.isEmpty())
+    if (!info.vendor.isEmpty() && info.vendor != drift::hwaccel::renderVendor()) {
         drift::hwaccel::setRenderVendor(info.vendor);
+        // Which backends decode off the render GPU just changed with it, and the picker is
+        // usually already built by the time this runs.
+        emit decodeModesChanged();
+    }
 
     const QString id = QString::fromLatin1(drift::gl::statusId(info.status));
     const QString detail = drift::gl::describeGl(info);
@@ -546,18 +562,6 @@ void PlaybackEngine::play()
     // without touch input; no-op on desktop.
     drift::android::acquireKeepScreenOn();
 
-    if (isQualityMode()) {
-        // Quality mode is not realtime: the playhead steps one frame per
-        // completed composite, so there is no clock for audio to follow and the
-        // sink stays stopped. The loop re-arms itself from onCompositeFinished.
-        emit playingChanged();
-        m_qualityRequestUs = m_playheadUs;
-        m_compositor.requestComposite(m_playheadUs, playbackRenderOptions());
-        return;
-    }
-
-    // Only the realtime path makes sound — quality mode leaves the sink stopped — and taking
-    // focus for a silent render would interrupt whatever the user is listening to for nothing.
     requestAudioFocus();
     ensureAudioSink();
     m_sinkPlayedUsOffset = m_audio.processedUSecs();
@@ -580,7 +584,7 @@ void PlaybackEngine::play()
 
 void PlaybackEngine::syncDisplayCadence()
 {
-    if (!m_playing || isQualityMode())
+    if (!m_playing)
         return;
 
     const int fps = m_project ? qMax(1, m_project->fps()) : 30;
@@ -635,7 +639,7 @@ void PlaybackEngine::onFrameSwapped()
 void PlaybackEngine::onDisplayTick()
 {
     m_lastDisplayTickNs = PlaybackClock::nowNs();
-    if (!m_playing || !m_project || isQualityMode())
+    if (!m_playing || !m_project)
         return;
     requestFrameForPresentation();
 }
@@ -677,10 +681,7 @@ void PlaybackEngine::pause()
     m_playheadTimer.stop();
     m_compositeTimer.stop();
     m_clock.pause();
-    // In quality mode the frame loop owns the playhead; the clock never ran.
-    if (!isQualityMode())
-        m_playheadUs = m_clock.pausedAt();
-    m_qualityRequestUs = -1;
+    m_playheadUs = m_clock.pausedAt();
     m_mixer.resetClipAudioState();
     m_audioStreamGeneration.fetch_add(1, std::memory_order_release);
     m_audio.stop();
@@ -769,28 +770,10 @@ void PlaybackEngine::onCompositeTick()
     requestFrameForPresentation();
 }
 
-void PlaybackEngine::onCompositeFinished()
-{
-    if (!m_playing || !m_project || !isQualityMode())
-        return;
-
-    // Step forward only if the playhead is still where this frame was requested;
-    // a seek that arrived while it rendered is honoured instead of skipped past.
-    if (m_qualityRequestUs == m_playheadUs) {
-        m_playheadUs += frameStepUs();
-        emit playheadUsChanged(static_cast<quint64>(m_playheadUs));
-        checkEndOfTimeline(m_playheadUs);
-        if (m_playheadUs >= m_project->durationUs())
-            return;
-    }
-
-    m_qualityRequestUs = m_playheadUs;
-    m_compositor.requestComposite(m_playheadUs, playbackRenderOptions());
-}
-
 void PlaybackEngine::onFrameReady(const GpuFrameTexture &frame)
 {
     checkHardwareFallback();
+    checkZeroCopyFallback();
 
     if (!frame.isValid())
         return;
@@ -825,15 +808,15 @@ FrameCompositor::RenderOptions PlaybackEngine::playbackRenderOptions() const
     }
     options.previewScale = qBound(kMinPreviewScale, fit * qualityFraction, 1.0);
 
-    // During fast playback, cap temporal history so time_echo cannot multiply
-    // decode work unboundedly. Paused, scrubbed and quality-mode frames keep the
-    // full history: those are exactly the cases where fidelity is the point.
-    options.maxTimeEchoHistoryFrames = m_playing && !isQualityMode() ? 12 : -1;
+    // During playback, cap temporal history so time_echo cannot multiply decode
+    // work unboundedly. Paused and scrubbed frames keep the full history: those
+    // are exactly the cases where fidelity is the point.
+    options.maxTimeEchoHistoryFrames = m_playing ? 12 : -1;
 
-    // Buffer decoded frames ahead of the playhead only while realtime playback is
-    // actually running: paused and quality-mode frames have no deadline to miss,
-    // and read-ahead during editing is thrown away by the next edit.
-    options.readAheadUs = m_playing && !isQualityMode() ? kReadAheadUs : 0;
+    // Buffer decoded frames ahead of the playhead only while playback is actually
+    // running: paused frames have no deadline to miss, and read-ahead during
+    // editing is thrown away by the next edit.
+    options.readAheadUs = m_playing ? kReadAheadUs : 0;
 
     // Hide the text clip being edited in place so the QML inline editor stands in
     // for it. Never applies while playing (no inline edit during playback).

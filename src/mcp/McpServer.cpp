@@ -9,6 +9,7 @@
 #include <QEventLoop>
 #include <QMetaObject>
 #include <QRandomGenerator>
+#include <QSettings>
 #include <QThread>
 #include <QTimer>
 
@@ -70,6 +71,35 @@ QString McpServer::makeToken() const
     return token;
 }
 
+// A token that changed on every launch meant re-pasting the Cursor/Claude setup each
+// session, so the first generated one is kept until rotateToken().
+QString McpServer::persistedToken() const
+{
+    QSettings settings;
+    const QString key = QStringLiteral("mcp/token");
+    QString token = settings.value(key).toString();
+    if (token.isEmpty()) {
+        token = makeToken();
+        settings.setValue(key, token);
+    }
+    return token;
+}
+
+void McpServer::rotateToken()
+{
+    const QString token = makeToken();
+    QSettings().setValue(QStringLiteral("mcp/token"), token);
+    if (!m_running)
+        return;
+    m_token = token;
+    // m_http reads its token on its own thread.
+    QMetaObject::invokeMethod(
+        m_http, [this, token]() { m_http->setToken(token); }, Qt::BlockingQueuedConnection);
+    if (m_wroteSessionFile)
+        writeSessionFile(m_port, m_token);
+    emit tokenChanged();
+}
+
 bool McpServer::start()
 {
     if (m_running || m_starting)
@@ -77,7 +107,7 @@ bool McpServer::start()
 
     m_starting = true;
     m_error.clear();
-    m_token = m_fixedToken.isEmpty() ? makeToken() : m_fixedToken;
+    m_token = m_fixedToken.isEmpty() ? persistedToken() : m_fixedToken;
 
     m_thread = new QThread(this);
     m_http = new McpHttp;
@@ -184,16 +214,30 @@ QJsonValue McpServer::handleRpc(const QString &toolbox, const QJsonValue &body)
 QJsonObject McpServer::dispatchTool(const QString &name, const QJsonObject &args)
 {
     if (name == QLatin1String("catalog"))
-        return textResult(catalogPayload());
-    if (name == QLatin1String("toolbox"))
-        return textResult(toolboxPayload(args.value(QStringLiteral("name")).toString()));
+        return textResult(catalogPayload(args));
+    if (name == QLatin1String("toolbox")) {
+        QStringList only;
+        for (const QJsonValue &v : args.value(QStringLiteral("ops")).toArray())
+            only.append(v.toString());
+        return textResult(toolboxPayload(args.value(QStringLiteral("name")).toString(), only));
+    }
+    if (name == QLatin1String("search")) {
+        return textResult(searchOps(args.value(QStringLiteral("q")).toString(),
+                                    args.value(QStringLiteral("limit")).toInt(8),
+                                    args.value(QStringLiteral("schema")).toBool()));
+    }
     if (name == QLatin1String("inspect"))
         return textResult(m_dispatcher->inspect(args));
     if (name == QLatin1String("apply"))
         return textResult(m_dispatcher->apply(args));
     if (name == QLatin1String("capture"))
         return m_dispatcher->capture(args);
-    return textResult(m_dispatcher->applyOne(name, args));
+    if (name == QLatin1String("frames"))
+        return m_dispatcher->frames(args);
+    if (name == QLatin1String("activity"))
+        return textResult(m_dispatcher->activity(args));
+    const QJsonObject result = m_dispatcher->applyOne(name, args);
+    return isRawResult(result) ? result : textResult(result);
 }
 
 } // namespace drift::mcp

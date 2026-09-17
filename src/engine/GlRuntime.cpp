@@ -1,7 +1,14 @@
 #include "GlRuntime.h"
 
 #include "GlModelRenderer.h"
+#include "GpuDevice.h"
 #include "VaapiZeroCopy.h"
+#if defined(Q_OS_WIN)
+#include "D3d11GlInterop.h"
+#endif
+#ifdef DRIFT_WITH_SKIA
+#include "SkiaRuntime.h"
+#endif
 
 #include <QColor>
 #include <QCoreApplication>
@@ -10,6 +17,7 @@
 #include <QMutexLocker>
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
+#include <QScopeGuard>
 #include <QSettings>
 #include <QSurfaceFormat>
 #include <QVector2D>
@@ -39,6 +47,27 @@ extern "C" {
 #if !defined(Q_OS_WIN) && !defined(Q_OS_MACOS) && !defined(Q_OS_ANDROID)
 #define DRIFT_VAAPI_IMPORT 1
 #include <unistd.h>
+#endif
+
+// MediaCodec zero-copy import: a gralloc buffer bound as a GL external texture. Android only,
+// and the mirror image of the VAAPI path above — same EGLImage mechanism, different source.
+#if defined(Q_OS_ANDROID)
+#define DRIFT_ANDROID_AHB_IMPORT 1
+#include <android/hardware_buffer.h>
+#include "ClipReader.h"
+#include "MediaCodecImagePool.h"
+#endif
+
+// GL_TEXTURE_EXTERNAL_OES and the EGL enums the AHardwareBuffer import needs. Qt for Android
+// builds against the GLES2 headers, which carry neither.
+#ifndef GL_TEXTURE_EXTERNAL_OES
+#define GL_TEXTURE_EXTERNAL_OES 0x8D65
+#endif
+#ifndef EGL_NATIVE_BUFFER_ANDROID
+#define EGL_NATIVE_BUFFER_ANDROID 0x3140
+#endif
+#ifndef EGL_IMAGE_PRESERVED_KHR
+#define EGL_IMAGE_PRESERVED_KHR 0x30D2
 #endif
 
 // Qt for Android is built against the GLES 2.0 headers so it can still run on ES2-only devices, and
@@ -142,6 +171,18 @@ VaapiZeroCopyMode vaapiZeroCopyMode()
     return mode;
 }
 
+bool d3d11ZeroCopyEnabled()
+{
+    if (qEnvironmentVariableIsSet("DRIFT_D3D11_ZEROCOPY"))
+        return qgetenv("DRIFT_D3D11_ZEROCOPY") != "0";
+    static bool enabled = true;
+    static std::once_flag once;
+    std::call_once(once, [] {
+        enabled = QSettings().value(QStringLiteral("preview/d3d11ZeroCopy"), true).toBool();
+    });
+    return enabled;
+}
+
 void applyVaapiZeroCopyXcbEgl()
 {
 #if !defined(Q_OS_WIN) && !defined(Q_OS_MACOS) && !defined(Q_OS_ANDROID)
@@ -165,7 +206,12 @@ namespace {
 // Every shader in the project is written as `#version 330 core`. Android has no desktop GL, so the
 // version line is swapped for `#version 300 es` and the default precision qualifiers ES requires
 // are prepended. Done at the compile sites so package .frag files stay shared with desktop.
-QByteArray translateShaderSource(QByteArray body, bool fragment)
+// `extensions` is a newline-separated block of #extension directives, or nullptr. GLSL requires
+// them to precede every non-preprocessor token, and `precision` is one — so they cannot simply be
+// written at the top of the shader body, which is where they would naturally go. They have to be
+// injected between the version line and the precision block, which is why this is a parameter
+// rather than something the caller can do for itself.
+QByteArray translateShaderSource(QByteArray body, bool fragment, const char *extensions = nullptr)
 {
     if (body.startsWith("#version")) {
         const int newline = body.indexOf('\n');
@@ -173,20 +219,29 @@ QByteArray translateShaderSource(QByteArray body, bool fragment)
     }
 
     const QOpenGLContext *current = QOpenGLContext::currentContext();
-    if (!current || !current->isOpenGLES())
-        return QByteArray("#version 330 core\n") + body;
+    if (!current || !current->isOpenGLES()) {
+        QByteArray out("#version 330 core\n");
+        if (extensions)
+            out += extensions;
+        return out + body;
+    }
 
     QByteArray preamble("#version 300 es\n");
+    if (extensions)
+        preamble += extensions;
     preamble += "precision highp float;\n";
     preamble += "precision highp int;\n";
-    if (fragment)
+    if (fragment) {
         preamble += "precision highp sampler2D;\n";
+        if (extensions)
+            preamble += "precision mediump samplerExternalOES;\n";
+    }
     return preamble + body;
 }
 
-QByteArray translateShader(const char *source, bool fragment)
+QByteArray translateShader(const char *source, bool fragment, const char *extensions = nullptr)
 {
-    return translateShaderSource(QByteArray(source), fragment);
+    return translateShaderSource(QByteArray(source), fragment, extensions);
 }
 
 QByteArray translateShader(const QString &source, bool fragment)
@@ -225,6 +280,28 @@ void main() {
 
 // Premultiplied canvas RGBA → BT.709 limited luma. Matches libswscale
 // SWS_CS_ITU709 with full-range RGB source and limited-range YUV dest.
+// samplerExternalOES returns RGB — the driver performs the YUV conversion from the buffer's own
+// dataspace metadata, so u_yuvToRgb/u_yuvOffset/u_yuvScale have no meaning on this path and the
+// colour matrix is not ours to choose. That is exactly why zero-copy is preview-only: an export
+// has to match the desktop compositor bit for bit.
+//
+// u_crop maps the [0,1] quad onto the picture's sub-rectangle of the gralloc buffer, which is
+// normally larger than the picture (1088 rows for 1080p).
+constexpr const char *kMediaCodecFragShader = R"(#version 330 core
+in vec2 v_texCoord;
+out vec4 fragColor;
+uniform samplerExternalOES u_image;
+uniform mat3 u_texMap;
+uniform vec4 u_crop;
+void main() {
+    vec2 src = (u_texMap * vec3(v_texCoord, 1.0)).xy;
+    fragColor = vec4(texture(u_image, u_crop.xy + src * u_crop.zw).rgb, 1.0);
+}
+)";
+
+constexpr const char *kMediaCodecFragExtensions =
+    "#extension GL_OES_EGL_image_external_essl3 : require\n";
+
 constexpr const char *kRgbaToYFragShader = R"(#version 330 core
 in vec2 v_texCoord;
 out vec4 fragColor;
@@ -444,8 +521,8 @@ bool cudaSwFormatIsNv12(const AVFrame *frame)
     return fc && fc->sw_format == AV_PIX_FMT_NV12;
 }
 
-bool queueCudaPlaneCopy(CudaGlApi &api, CUstream stream, CUarray dst, CUdeviceptr src,
-                        size_t srcPitch, size_t widthBytes, size_t height)
+CUresult queueCudaPlaneCopy(CudaGlApi &api, CUstream stream, CUarray dst, CUdeviceptr src,
+                            size_t srcPitch, size_t widthBytes, size_t height)
 {
     CudaMemcpy2D op{};
     op.srcMemoryType = kCuMemoryDevice;
@@ -459,32 +536,48 @@ bool queueCudaPlaneCopy(CudaGlApi &api, CUstream stream, CUarray dst, CUdevicept
     // CU_STREAM_NON_BLOCKING, which by definition does not synchronise against the legacy
     // null stream — so a copy issued there was unordered with respect to the map and unmap
     // around it, and GL could sample the WRITE_DISCARD textures before the pixels arrived.
-    return api.cuMemcpy2DAsync(&op, stream) == kCuSuccess;
+    return api.cuMemcpy2DAsync(&op, stream);
 }
 
 // Both NV12 planes in one map/unmap pair and one stream wait, rather than a pair each: the
 // two copies are independent, and the only thing that has to be true before GL samples is
 // that both have landed.
+// On failure `why` names the CUDA call that refused and its error code: "failed" alone told a
+// Windows bug report nothing about which of the five steps to look at.
 bool copyCudaNv12ToTextures(CudaGlApi &api, CUstream stream, CUgraphicsResource yRes,
-                            CUgraphicsResource uvRes, const AVFrame *frame, int width, int height)
+                            CUgraphicsResource uvRes, const AVFrame *frame, int width, int height,
+                            QString *why)
 {
-    CUgraphicsResource resources[2] = {yRes, uvRes};
-    if (api.cuGraphicsMapResources(2, resources, stream) != kCuSuccess)
+    const auto fail = [why](const char *call, CUresult rc) {
+        *why = QStringLiteral("%1 returned CUDA error %2").arg(QLatin1String(call)).arg(rc);
         return false;
+    };
+
+    CUgraphicsResource resources[2] = {yRes, uvRes};
+    CUresult rc = api.cuGraphicsMapResources(2, resources, stream);
+    if (rc != kCuSuccess)
+        return fail("cuGraphicsMapResources", rc);
 
     CUarray yArray = nullptr;
     CUarray uvArray = nullptr;
-    bool ok = api.cuGraphicsSubResourceGetMappedArray(&yArray, yRes, 0, 0) == kCuSuccess && yArray
-        && api.cuGraphicsSubResourceGetMappedArray(&uvArray, uvRes, 0, 0) == kCuSuccess && uvArray;
+    bool ok = true;
+    rc = api.cuGraphicsSubResourceGetMappedArray(&yArray, yRes, 0, 0);
+    if (rc == kCuSuccess)
+        rc = api.cuGraphicsSubResourceGetMappedArray(&uvArray, uvRes, 0, 0);
+    if (rc != kCuSuccess || !yArray || !uvArray)
+        ok = fail("cuGraphicsSubResourceGetMappedArray", rc);
 
     if (ok) {
         // The interleaved UV plane is full-width in bytes over half the rows: width/2 texels
         // of two bytes each.
-        ok = queueCudaPlaneCopy(api, stream, yArray, frame->data[0],
-                                size_t(qMax(0, frame->linesize[0])), size_t(width), size_t(height))
-            && queueCudaPlaneCopy(api, stream, uvArray, frame->data[1],
-                                  size_t(qMax(0, frame->linesize[1])), size_t(width),
-                                  size_t(height / 2));
+        rc = queueCudaPlaneCopy(api, stream, yArray, frame->data[0],
+                                size_t(qMax(0, frame->linesize[0])), size_t(width), size_t(height));
+        if (rc == kCuSuccess)
+            rc = queueCudaPlaneCopy(api, stream, uvArray, frame->data[1],
+                                    size_t(qMax(0, frame->linesize[1])), size_t(width),
+                                    size_t(height / 2));
+        if (rc != kCuSuccess)
+            ok = fail("cuMemcpy2DAsync", rc);
     }
 
     api.cuGraphicsUnmapResources(2, resources, stream);
@@ -493,15 +586,26 @@ bool copyCudaNv12ToTextures(CudaGlApi &api, CUstream stream, CUgraphicsResource 
     // it is the sync point that makes the textures safe for the convert shader. One wait on
     // one stream per frame, against a full hardware-transfer download plus PBO upload if this
     // path is not taken.
-    if (ok && api.cuStreamSynchronize(stream) != kCuSuccess)
-        ok = false;
+    if (ok) {
+        rc = api.cuStreamSynchronize(stream);
+        if (rc != kCuSuccess)
+            ok = fail("cuStreamSynchronize", rc);
+    }
+    if (!ok) {
+        *why += QStringLiteral(" (%1x%2, pitch %3/%4, stream %5)")
+                    .arg(width)
+                    .arg(height)
+                    .arg(frame->linesize[0])
+                    .arg(frame->linesize[1])
+                    .arg(stream ? QStringLiteral("set") : QStringLiteral("null"));
+    }
     return ok;
 }
 #endif
 
 QMutex g_previewImportMutex;
 GlRuntime::PreviewUploadPath g_previewUploadPath = GlRuntime::PreviewUploadPath::None;
-QString g_vaapiImportReason;
+QString g_zeroCopyDeclineReason;
 
 // Its own mutex, not m_initMutex: initGlObjects() records the outcome while the
 // caller of ensureReady() still holds m_initMutex, and the debug report reads the
@@ -550,13 +654,17 @@ void recordPreviewUploadPath(GlRuntime::PreviewUploadPath path)
     g_previewUploadPath = path;
 }
 
+// The latest reason a zero-copy importer turned a frame away, for the debug report's zero-copy
+// row. Each importer decides for itself whether to log; this only remembers the text.
+void noteZeroCopyDecline(const QString &reason)
+{
+    QMutexLocker lock(&g_previewImportMutex);
+    g_zeroCopyDeclineReason = reason;
+}
+
 void logVaapiImportOnce(const QString &reason)
 {
-    {
-        QMutexLocker lock(&g_previewImportMutex);
-        if (g_vaapiImportReason.isEmpty())
-            g_vaapiImportReason = reason;
-    }
+    noteZeroCopyDecline(reason);
     static std::once_flag once;
     std::call_once(once, [reason] {
         qWarning("GlRuntime: VAAPI zero-copy import unavailable (%s)", qUtf8Printable(reason));
@@ -953,6 +1061,9 @@ bool GlRuntime::initGlObjects()
     }
 
     setGlStatus(describeContext(context.get(), gl, drift::gl::GlStatus::Ready));
+    // Only EGL can say which DRM device a context draws through, and only while it is current.
+    // Record it here so the decode side can ask from any thread later.
+    drift::gpu::probeRenderDrmNode();
     context->doneCurrent();
     return true;
 }
@@ -1070,6 +1181,10 @@ void GlRuntime::releaseCaches()
     }
 
     exec([this] {
+#ifdef DRIFT_WITH_SKIA
+        if (skia)
+            skia->releaseCaches();
+#endif
         destroyImageUploadCache();
         destroyVideoUploadState();
         destroyExportNv12State();
@@ -1093,6 +1208,12 @@ void GlRuntime::shutdown()
         [this] {
             if (!context->makeCurrent(surface.get()))
                 return;
+#ifdef DRIFT_WITH_SKIA
+            if (skia) {
+                skia->shutdown();
+                skia.reset();
+            }
+#endif
             if (auto *gl = context->extraFunctions()) {
                 for (int i = 0; i < kPresentRingSize; ++i) {
                     if (m_presentFence[i]) {
@@ -1435,11 +1556,82 @@ void GlRuntime::destroyImageUploadCache()
     m_imageUploadIndex.clear();
 }
 
+#if defined(DRIFT_ANDROID_AHB_IMPORT)
+namespace {
+
+// EGL for the AHardwareBuffer import. Deliberately not shared with the VAAPI block above: that
+// one is compiled out on Android, and reproducing three typedefs is cheaper than making a
+// Linux-only path build here. Entry points come from QOpenGLContext rather than a link against
+// libEGL, so nothing new is added to the .so's dependencies.
+using EglDisplay = void *;
+using EglImage = void *;
+using EglClientBuffer = void *;
+
+constexpr int kEglExtensionsQuery = 0x3055;
+constexpr int kEglNoneAttrib = 0x3038;
+
+struct AndroidEglApi
+{
+    bool ok = false;
+    EglDisplay (*eglGetCurrentDisplay)() = nullptr;
+    const char *(*eglQueryString)(EglDisplay, int) = nullptr;
+    EglClientBuffer (*eglGetNativeClientBufferANDROID)(const AHardwareBuffer *) = nullptr;
+    EglImage (*eglCreateImageKHR)(EglDisplay, void *, unsigned int, EglClientBuffer,
+                                  const int *) = nullptr;
+    unsigned int (*eglDestroyImageKHR)(EglDisplay, EglImage) = nullptr;
+    void (*glEGLImageTargetTexture2DOES)(unsigned int, EglImage) = nullptr;
+};
+
+const AndroidEglApi &androidEglApi()
+{
+    static AndroidEglApi api = [] {
+        AndroidEglApi out;
+        QOpenGLContext *ctx = QOpenGLContext::currentContext();
+        if (!ctx)
+            return out;
+        const auto resolve = [ctx](const char *name) { return ctx->getProcAddress(name); };
+        out.eglGetCurrentDisplay =
+            reinterpret_cast<decltype(out.eglGetCurrentDisplay)>(resolve("eglGetCurrentDisplay"));
+        out.eglQueryString =
+            reinterpret_cast<decltype(out.eglQueryString)>(resolve("eglQueryString"));
+        out.eglGetNativeClientBufferANDROID =
+            reinterpret_cast<decltype(out.eglGetNativeClientBufferANDROID)>(
+                resolve("eglGetNativeClientBufferANDROID"));
+        out.eglCreateImageKHR =
+            reinterpret_cast<decltype(out.eglCreateImageKHR)>(resolve("eglCreateImageKHR"));
+        out.eglDestroyImageKHR =
+            reinterpret_cast<decltype(out.eglDestroyImageKHR)>(resolve("eglDestroyImageKHR"));
+        out.glEGLImageTargetTexture2DOES =
+            reinterpret_cast<decltype(out.glEGLImageTargetTexture2DOES)>(
+                resolve("glEGLImageTargetTexture2DOES"));
+        out.ok = out.eglGetCurrentDisplay && out.eglQueryString
+            && out.eglGetNativeClientBufferANDROID && out.eglCreateImageKHR
+            && out.eglDestroyImageKHR && out.glEGLImageTargetTexture2DOES;
+        return out;
+    }();
+    return api;
+}
+
+void logMediaCodecImportOnce(const char *reason)
+{
+    static std::once_flag once;
+    std::call_once(once, [reason] {
+        qWarning("GlRuntime: MediaCodec zero-copy import unavailable (%s)", reason);
+    });
+}
+
+} // namespace
+#endif // DRIFT_ANDROID_AHB_IMPORT
+
 void GlRuntime::destroyVideoUploadState()
 {
     unregisterCudaResources();
     auto *gl = functions();
     if (gl) {
+#if defined(Q_OS_WIN)
+        if (m_d3d11)
+            m_d3d11->release(gl);
+#endif
         if (m_videoY) {
             gl->glDeleteTextures(1, &m_videoY);
             m_videoY = 0;
@@ -1456,6 +1648,25 @@ void GlRuntime::destroyVideoUploadState()
             gl->glDeleteTextures(1, &m_importUV);
             m_importUV = 0;
         }
+#if defined(DRIFT_ANDROID_AHB_IMPORT)
+        if (m_mcTexture) {
+            gl->glDeleteTextures(1, &m_mcTexture);
+            m_mcTexture = 0;
+        }
+        // The EGLImages outlive the texture they were last bound to, so they are destroyed here
+        // rather than per frame. The gralloc buffers themselves belong to the AImages and go when
+        // the decoder's frames do.
+        if (!m_mcImageCache.empty()) {
+            const AndroidEglApi &api = androidEglApi();
+            if (api.ok) {
+                if (EglDisplay egl = api.eglGetCurrentDisplay()) {
+                    for (const auto &entry : m_mcImageCache)
+                        api.eglDestroyImageKHR(egl, entry.second);
+                }
+            }
+            m_mcImageCache.clear();
+        }
+#endif
         if (m_videoPbo[0] || m_videoPbo[1]) {
             gl->glDeleteBuffers(2, m_videoPbo);
             m_videoPbo[0] = m_videoPbo[1] = 0;
@@ -1547,16 +1758,29 @@ void GlRuntime::unregisterCudaResources()
 {
 #if !defined(Q_OS_MACOS)
     CudaGlApi &api = cudaGlApi();
-    if (!api.ok)
-        return;
-    if (m_cudaYResource) {
-        api.cuGraphicsUnregisterResource(static_cast<CUgraphicsResource>(m_cudaYResource));
-        m_cudaYResource = nullptr;
+    if (api.ok && (m_cudaYResource || m_cudaUvResource)) {
+        // From the context they were registered in. Callers may have another one current —
+        // importCudaNv12 has the incoming frame's pushed — and CUDA refuses an unregister from the
+        // wrong context, which would leak the registration.
+        CUcontext owner = nullptr;
+        if (m_cudaResourceDevice) {
+            const auto *device = reinterpret_cast<const AVHWDeviceContext *>(m_cudaResourceDevice->data);
+            if (device && device->hwctx)
+                owner = *reinterpret_cast<CUcontext const *>(device->hwctx);
+        }
+        const bool pushed = owner && api.cuCtxPushCurrent(owner) == kCuSuccess;
+        if (m_cudaYResource)
+            api.cuGraphicsUnregisterResource(static_cast<CUgraphicsResource>(m_cudaYResource));
+        if (m_cudaUvResource)
+            api.cuGraphicsUnregisterResource(static_cast<CUgraphicsResource>(m_cudaUvResource));
+        if (pushed) {
+            CUcontext popped = nullptr;
+            api.cuCtxPopCurrent(&popped);
+        }
     }
-    if (m_cudaUvResource) {
-        api.cuGraphicsUnregisterResource(static_cast<CUgraphicsResource>(m_cudaUvResource));
-        m_cudaUvResource = nullptr;
-    }
+    m_cudaYResource = nullptr;
+    m_cudaUvResource = nullptr;
+    av_buffer_unref(&m_cudaResourceDevice);
     m_cudaTexW = 0;
     m_cudaTexH = 0;
 #endif
@@ -1577,10 +1801,31 @@ bool GlRuntime::importCudaNv12(QOpenGLExtraFunctions *gl, const AVFrame *frame)
     Q_UNUSED(frame);
     return false;
 #else
-    if (m_cudaImportFailed || !frame || frame->format != AV_PIX_FMT_CUDA || !cudaSwFormatIsNv12(frame))
+    if (m_cudaImportFailed || !gl || !frame || frame->format != AV_PIX_FMT_CUDA
+        || !cudaSwFormatIsNv12(frame))
         return false;
+
+    // CUDA can only register GL textures that live on its own GPU. On a hybrid laptop compositing
+    // on the integrated GPU the registration below cannot succeed, and it would run inside FFmpeg's
+    // CUDA context — the one NVDEC is decoding on — so it is not attempted at all. Decided once:
+    // the GL context does not move between GPUs within a session.
+    if (m_cudaGlVendorOk < 0) {
+        const char *vendor = reinterpret_cast<const char *>(gl->glGetString(GL_VENDOR));
+        m_cudaGlVendorOk = (vendor && strstr(vendor, "NVIDIA")) ? 1 : 0;
+        if (!m_cudaGlVendorOk) {
+            noteZeroCopyDecline(
+                QStringLiteral("OpenGL renders on %1; CUDA interop needs OpenGL on the NVIDIA GPU")
+                    .arg(vendor ? QString::fromUtf8(vendor) : QStringLiteral("an unknown GPU")));
+        }
+    }
+    if (!m_cudaGlVendorOk) {
+        m_cudaImportFailed = true;
+        return false;
+    }
+
     CudaGlApi &api = cudaGlApi();
     if (!api.ok) {
+        noteZeroCopyDecline(QStringLiteral("the CUDA driver's GL interop entry points are unavailable"));
         m_cudaImportFailed = true;
         return false;
     }
@@ -1597,17 +1842,30 @@ bool GlRuntime::importCudaNv12(QOpenGLExtraFunctions *gl, const AVFrame *frame)
     if (api.cuCtxPushCurrent(ctx) != kCuSuccess)
         return false;
 
+    // ClipReader shares one CUDA device between readers, so this normally never changes. When it
+    // does — an exporter's device, or a device recreated after a failure — the registrations made
+    // under the old context cannot be mapped from this one (CUDA_ERROR_INVALID_HANDLE), which is
+    // exactly what used to switch interop off for the whole session.
+    const AVBufferRef *frameDevice =
+        reinterpret_cast<const AVHWFramesContext *>(frame->hw_frames_ctx->data)->device_ref;
+    const bool deviceChanged =
+        m_cudaResourceDevice && frameDevice && m_cudaResourceDevice->data != frameDevice->data;
+
     bool ok = false;
-    if (m_cudaTexW != w || m_cudaTexH != h || !m_cudaYResource || !m_cudaUvResource) {
+    if (deviceChanged || m_cudaTexW != w || m_cudaTexH != h || !m_cudaYResource
+        || !m_cudaUvResource) {
         unregisterCudaResources();
         CUgraphicsResource yRes = nullptr;
         CUgraphicsResource uvRes = nullptr;
-        if (api.cuGraphicsGLRegisterImage(&yRes, m_videoY, GL_TEXTURE_2D, kCuRegisterWriteDiscard)
-                == kCuSuccess
-            && api.cuGraphicsGLRegisterImage(&uvRes, m_videoUV, GL_TEXTURE_2D, kCuRegisterWriteDiscard)
-                == kCuSuccess) {
+        CUresult rc =
+            api.cuGraphicsGLRegisterImage(&yRes, m_videoY, GL_TEXTURE_2D, kCuRegisterWriteDiscard);
+        if (rc == kCuSuccess)
+            rc = api.cuGraphicsGLRegisterImage(&uvRes, m_videoUV, GL_TEXTURE_2D,
+                                               kCuRegisterWriteDiscard);
+        if (rc == kCuSuccess) {
             m_cudaYResource = yRes;
             m_cudaUvResource = uvRes;
+            m_cudaResourceDevice = frameDevice ? av_buffer_ref(frameDevice) : nullptr;
             m_cudaTexW = w;
             m_cudaTexH = h;
         } else {
@@ -1615,20 +1873,79 @@ bool GlRuntime::importCudaNv12(QOpenGLExtraFunctions *gl, const AVFrame *frame)
                 api.cuGraphicsUnregisterResource(yRes);
             if (uvRes)
                 api.cuGraphicsUnregisterResource(uvRes);
+            noteZeroCopyDecline(
+                QStringLiteral("cuGraphicsGLRegisterImage failed (CUDA error %1)").arg(rc));
             m_cudaImportFailed = true;
         }
     }
 
     if (m_cudaYResource && m_cudaUvResource) {
+        QString why;
         ok = copyCudaNv12ToTextures(api, stream, static_cast<CUgraphicsResource>(m_cudaYResource),
-                                    static_cast<CUgraphicsResource>(m_cudaUvResource), frame, w, h);
-        if (!ok)
+                                    static_cast<CUgraphicsResource>(m_cudaUvResource), frame, w, h,
+                                    &why);
+        if (!ok) {
+            noteZeroCopyDecline(
+                QStringLiteral("copying the NVDEC surface into GL textures failed: %1").arg(why));
+            qWarning("GlRuntime: CUDA interop copy failed: %s", qUtf8Printable(why));
             m_cudaImportFailed = true;
+        }
     }
 
     CUcontext popped = nullptr;
     api.cuCtxPopCurrent(&popped);
     return ok;
+#endif
+}
+
+// The Windows counterpart of the VAAPI import below: the D3D11-decoded frame goes GPU to GPU into
+// the Y/UV pair the convert shader samples, instead of av_hwframe_transfer_data plus a PBO upload.
+// See D3d11GlInterop for why it takes a copy and two tiny draws on the D3D11 side.
+bool GlRuntime::importD3d11Nv12(QOpenGLExtraFunctions *gl, const AVFrame *frame, GLuint *texY,
+                                GLuint *texUV)
+{
+#if !defined(Q_OS_WIN)
+    Q_UNUSED(gl);
+    Q_UNUSED(frame);
+    Q_UNUSED(texY);
+    Q_UNUSED(texUV);
+    return false;
+#else
+    if (m_d3d11ImportFailed || !gl || !frame || frame->format != AV_PIX_FMT_D3D11)
+        return false;
+    if (!drift::d3d11ZeroCopyEnabled()) {
+        noteZeroCopyDecline(QStringLiteral(
+            "D3D11 interop is turned off (preview/d3d11ZeroCopy or DRIFT_D3D11_ZEROCOPY)"));
+        return false;
+    }
+    if (!m_d3d11)
+        m_d3d11 = std::make_unique<D3d11GlInterop>();
+
+    QString why;
+    switch (m_d3d11->lock(gl, frame, texY, texUV, &why)) {
+    case D3d11GlInterop::Result::Locked:
+        return true;
+    case D3d11GlInterop::Result::Declined:
+        // A property of this frame, not of the machine: the next clip may import fine.
+        if (!why.isEmpty())
+            noteZeroCopyDecline(why);
+        return false;
+    case D3d11GlInterop::Result::Failed:
+        break;
+    }
+    noteZeroCopyDecline(why);
+    qWarning("GlRuntime: D3D11 zero-copy import unavailable (%s)", qUtf8Printable(why));
+    m_d3d11ImportFailed = true;
+    m_d3d11->release(gl);
+    return false;
+#endif
+}
+
+void GlRuntime::unlockD3d11Import()
+{
+#if defined(Q_OS_WIN)
+    if (m_d3d11)
+        m_d3d11->unlock();
 #endif
 }
 
@@ -1682,6 +1999,115 @@ bool vaapiDriverIsVerified(VaEglApi &api, void *display, QOpenGLExtraFunctions *
 
 } // namespace
 #endif // DRIFT_VAAPI_IMPORT
+
+
+// Binds the gralloc buffer behind a latched MediaCodec frame as a GL external texture. No copy:
+// the same memory the video block wrote is the memory the shader samples.
+//
+// Every failure here is sticky and process-wide, which is stronger than the VAAPI path's
+// per-frame fallback — and it has to be. VAAPI can always fall back to ensureSoftwareNv12 for the
+// frame in flight; there is no equivalent for an opaque gralloc handle, so a frame that cannot be
+// imported is simply lost. The recovery is that ClipReader stops opening surface-mode decoders,
+// which costs one or two dropped preview frames on a device that cannot do this, once.
+bool GlRuntime::importMediaCodecImage(QOpenGLExtraFunctions *gl, const AVFrame *frame,
+                                      GLuint *texture, QVector4D *crop)
+{
+#ifndef DRIFT_ANDROID_AHB_IMPORT
+    Q_UNUSED(gl);
+    Q_UNUSED(frame);
+    Q_UNUSED(texture);
+    Q_UNUSED(crop);
+    return false;
+#else
+    const auto fail = [this](const char *why) {
+        logMediaCodecImportOnce(why);
+        m_mcImportFailed = true;
+        ClipReader::noteMediaCodecImportFailure();
+        return false;
+    };
+
+    if (m_mcImportFailed || !gl || !frame || !texture || !crop)
+        return false;
+    if (frame->format != AV_PIX_FMT_MEDIACODEC || !frame->buf[0])
+        return false;
+
+    auto *latched = reinterpret_cast<drift::LatchedMediaCodecImage *>(frame->buf[0]->data);
+    if (!latched || !latched->buffer)
+        return false;
+
+    const AndroidEglApi &api = androidEglApi();
+    if (!api.ok)
+        return fail("EGL/GLES entry points missing");
+
+    EglDisplay egl = api.eglGetCurrentDisplay();
+    if (!egl)
+        return fail("no current EGL display");
+
+    // ESSL1's GL_OES_EGL_image_external is not enough: the shader is #version 300 es, which needs
+    // the _essl3 variant. Some older Mali and Adreno drivers expose only the ESSL1 one, and
+    // declining there is correct rather than a bug.
+    static int extensionsOk = -1;
+    if (extensionsOk < 0) {
+        const char *glExts = reinterpret_cast<const char *>(gl->glGetString(GL_EXTENSIONS));
+        const char *eglExts = api.eglQueryString(egl, kEglExtensionsQuery);
+        extensionsOk = (glExts && strstr(glExts, "GL_OES_EGL_image_external_essl3") && eglExts
+                        && strstr(eglExts, "EGL_ANDROID_image_native_buffer")
+                        && strstr(eglExts, "EGL_ANDROID_get_native_client_buffer"))
+            ? 1
+            : 0;
+    }
+    if (extensionsOk == 0)
+        return fail("GL_OES_EGL_image_external_essl3 or EGL_ANDROID_image_native_buffer missing");
+
+    // Gralloc hands the same small set of buffers round, so this is a hit almost every frame and
+    // saves a driver image allocation each time.
+    EglImage image = nullptr;
+    for (const auto &entry : m_mcImageCache) {
+        if (entry.first == latched->buffer) {
+            image = entry.second;
+            break;
+        }
+    }
+    if (!image) {
+        EglClientBuffer client = api.eglGetNativeClientBufferANDROID(latched->buffer);
+        if (!client)
+            return fail("eglGetNativeClientBufferANDROID returned null");
+        const int attribs[] = {EGL_IMAGE_PRESERVED_KHR, 1, kEglNoneAttrib};
+        image = api.eglCreateImageKHR(egl, nullptr, EGL_NATIVE_BUFFER_ANDROID, client, attribs);
+        if (!image)
+            return fail("eglCreateImageKHR refused an AHardwareBuffer");
+        constexpr size_t kMaxCached = 12;
+        if (m_mcImageCache.size() >= kMaxCached) {
+            api.eglDestroyImageKHR(egl, m_mcImageCache.front().second);
+            m_mcImageCache.erase(m_mcImageCache.begin());
+        }
+        m_mcImageCache.emplace_back(latched->buffer, image);
+    }
+
+    if (!m_mcTexture)
+        gl->glGenTextures(1, &m_mcTexture);
+    gl->glBindTexture(GL_TEXTURE_EXTERNAL_OES, m_mcTexture);
+    // Mipmaps and REPEAT are illegal on an external texture; only these four states are.
+    gl->glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    gl->glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    gl->glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    gl->glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    api.glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, image);
+
+    // The allocated buffer is normally taller than the picture (1088 rows for 1080p). Sampling
+    // the whole thing is the classic garbage-strip-along-the-bottom bug, so map the quad onto the
+    // picture's sub-rectangle. See MediaCodecImagePool::latch for the convention: width/height
+    // are the picture, crop_left/crop_top its offset within the buffer.
+    AHardwareBuffer_Desc desc{};
+    AHardwareBuffer_describe(latched->buffer, &desc);
+    const float bufW = desc.width > 0 ? float(desc.width) : float(frame->width);
+    const float bufH = desc.height > 0 ? float(desc.height) : float(frame->height);
+    *crop = QVector4D(float(frame->crop_left) / bufW, float(frame->crop_top) / bufH,
+                      float(frame->width) / bufW, float(frame->height) / bufH);
+    *texture = m_mcTexture;
+    return true;
+#endif
+}
 
 bool GlRuntime::importVaapiNv12(QOpenGLExtraFunctions *gl, const AVFrame *frame)
 {
@@ -2017,6 +2443,13 @@ QOpenGLShaderProgram *GlRuntime::builtinProgram(const QString &id, const char *v
 QOpenGLShaderProgram *GlRuntime::builtinProgram(const QString &id, const char *vertexSource,
                                                 const char *fragmentSource, const char *geom)
 {
+    return builtinProgram(id, vertexSource, fragmentSource, geom, nullptr);
+}
+
+QOpenGLShaderProgram *GlRuntime::builtinProgram(const QString &id, const char *vertexSource,
+                                                const char *fragmentSource, const char *geom,
+                                                const char *fragmentExtensions)
+{
     CompiledEffect &cached = programs[id];
     if (cached.ok)
         return cached.passes[0].program.get();
@@ -2029,8 +2462,8 @@ QOpenGLShaderProgram *GlRuntime::builtinProgram(const QString &id, const char *v
     if (!pass.program->addShaderFromSourceCode(QOpenGLShader::Vertex,
                                                translateShader(vertexSource, false))
         || (geom && !pass.program->addShaderFromSourceCode(QOpenGLShader::Geometry, geom))
-        || !pass.program->addShaderFromSourceCode(QOpenGLShader::Fragment,
-                                                  translateShader(fragmentSource, true))
+        || !pass.program->addShaderFromSourceCode(
+            QOpenGLShader::Fragment, translateShader(fragmentSource, true, fragmentExtensions))
         || !pass.program->link()) {
         qWarning("GlRuntime: builtin program '%s' failed: %s", qPrintable(id),
                  qPrintable(pass.program->log()));
@@ -2228,6 +2661,46 @@ GlTarget promoteImageToTargetCached(GlRuntime &rt, QOpenGLExtraFunctions *gl, co
     return target;
 }
 
+// The external-texture twin of the NV12 draw below. Separate because samplerExternalOES yields
+// RGB — the driver did the YUV conversion from the buffer's own dataspace, so there is no colour
+// matrix to apply and none to choose. That is the reason this path is preview-only: an export has
+// to produce the same pixels as the desktop compositor, and this cannot promise that.
+GlTarget drawMediaCodecImage(GlRuntime &rt, QOpenGLExtraFunctions *gl,
+                             const PreviewVideoFrame &frame, GLuint texture, const QVector4D &crop)
+{
+    const int destW = qMax(2, frame.displayWidth() & ~1);
+    const int destH = qMax(2, frame.displayHeight() & ~1);
+    GlTarget target = rt.acquireTarget(destW, destH);
+    if (!target.isValid())
+        return {};
+
+    QOpenGLShaderProgram *program =
+        rt.builtinProgram(QStringLiteral("__mediacodec__"), kQuadVertexShader,
+                          kMediaCodecFragShader, nullptr, kMediaCodecFragExtensions);
+    if (!program) {
+        rt.releaseTarget(std::move(target));
+        return {};
+    }
+
+    target.fbo->bind();
+    gl->glViewport(0, 0, destW, destH);
+    gl->glDisable(GL_BLEND);
+    gl->glClearColor(0.f, 0.f, 0.f, 0.f);
+    gl->glClear(GL_COLOR_BUFFER_BIT);
+    program->bind();
+    program->setUniformValue("u_image", 0);
+    program->setUniformValue("u_texMap", texMapForRotation(frame.rotation));
+    program->setUniformValue("u_crop", crop);
+    gl->glActiveTexture(GL_TEXTURE0);
+    gl->glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture);
+    gl->glBindVertexArray(rt.vao);
+    gl->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    gl->glBindVertexArray(0);
+    program->release();
+    target.fbo->release();
+    return target;
+}
+
 GlTarget promoteVideoFrameToTarget(GlRuntime &rt, QOpenGLExtraFunctions *gl,
                                    const PreviewVideoFrame &frame)
 {
@@ -2241,11 +2714,12 @@ GlTarget promoteVideoFrameToTarget(GlRuntime &rt, QOpenGLExtraFunctions *gl,
         return {};
 
     // CUDA copies into the pooled textures; VAAPI binds the decoder's own dma-buf into a
-    // separate pair, so the draw below has to be told which one holds this frame. Either way
-    // the frame never leaves the GPU. Anything neither takes falls through to a hardware
-    // transfer and a PBO upload.
+    // separate pair, and D3D11 hands back its interop pair, so the draw below has to be told
+    // which one holds this frame. Either way the frame never leaves the GPU. Anything none of
+    // them takes falls through to a hardware transfer and a PBO upload.
     GLuint texY = 0;
     GLuint texUV = 0;
+    bool d3d11Locked = false;
     bool uploaded = rt.importCudaNv12(gl, av);
     if (uploaded) {
         // Read the names back only now. importCudaNv12 allocates the pooled pair through
@@ -2261,6 +2735,25 @@ GlTarget promoteVideoFrameToTarget(GlRuntime &rt, QOpenGLExtraFunctions *gl,
         texY = rt.m_importY;
         texUV = rt.m_importUV;
         recordPreviewUploadPath(GlRuntime::PreviewUploadPath::VaapiDmaBuf);
+    } else if (rt.importD3d11Nv12(gl, av, &texY, &texUV)) {
+        uploaded = true;
+        d3d11Locked = true;
+        recordPreviewUploadPath(GlRuntime::PreviewUploadPath::D3d11Interop);
+    }
+    // D3D11 cannot render the next frame into the interop textures while GL holds them, and GL may
+    // only sample them while it does — so every return below, drawn or not, unlocks.
+    const auto unlockD3d11 = qScopeGuard([&rt, d3d11Locked] {
+        if (d3d11Locked)
+            rt.unlockD3d11Import();
+    });
+
+    // MediaCodec's external texture is already RGB, so it needs a different program and cannot
+    // share the NV12 draw below — handled and returned separately.
+    GLuint mcTexture = 0;
+    QVector4D mcCrop;
+    if (!uploaded && rt.importMediaCodecImage(gl, av, &mcTexture, &mcCrop)) {
+        recordPreviewUploadPath(GlRuntime::PreviewUploadPath::MediaCodecImage);
+        return drawMediaCodecImage(rt, gl, frame, mcTexture, mcCrop);
     }
     if (!uploaded) {
         AVFrame *nv12 = rt.ensureSoftwareNv12(av);
@@ -2326,10 +2819,10 @@ GlRuntime::PreviewUploadPath GlRuntime::lastPreviewUploadPath()
     return g_previewUploadPath;
 }
 
-QString GlRuntime::lastVaapiImportReason()
+QString GlRuntime::lastZeroCopyDeclineReason()
 {
     QMutexLocker lock(&g_previewImportMutex);
-    return g_vaapiImportReason;
+    return g_zeroCopyDeclineReason;
 }
 
 void setPackageUniforms(QOpenGLShaderProgram *program, const QMap<QString, QVariant> &parameters,

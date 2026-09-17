@@ -8,7 +8,8 @@
 #include <QDir>
 #include <QFile>
 #include <QImage>
-#include <QImageReader>
+#include "StillImage.h"
+
 #include <QStandardPaths>
 #include <QTransform>
 #include <QUuid>
@@ -110,9 +111,7 @@ bool editImage(const MediaEditSpec &spec, QString *errorOut,
     if (cancelled(onProgress, 0.0))
         return fail(trEdit("Cancelled"));
 
-    QImageReader reader(spec.inputPath);
-    reader.setAutoTransform(true);
-    QImage image = reader.read();
+    const QImage image = drift::decodeStillImage(spec.inputPath);
     if (image.isNull())
         return fail(trEdit("Could not read that image"));
 
@@ -778,7 +777,7 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
         return fail(trEdit("The video has no usable size"));
     }
 
-    const int rotation = displayRotationOf(vStream);
+    const int rotation = spec.rotationOverride >= 0 ? spec.rotationOverride : displayRotationOf(vStream);
     int displayW = vDec->width;
     int displayH = vDec->height;
     if (rotation == 90 || rotation == 270)

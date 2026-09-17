@@ -14,6 +14,7 @@
 #include "PreviewVideoFrame.h"
 #include "core/Time.h"
 
+#include <QVector4D>
 #include <QByteArray>
 #include <QElapsedTimer>
 #include <QImage>
@@ -41,7 +42,15 @@ class QOffscreenSurface;
 class QOpenGLContext;
 struct SwsContext;
 
+namespace drift::skia {
+class SkiaRuntime;
+}
+
 namespace drift::gl {
+
+#if defined(Q_OS_WIN)
+class D3d11GlInterop;
+#endif
 
 // A framebuffer plus its size. Owns the FBO; hand it back to GlRuntime with
 // releaseTarget() so it can be recycled rather than freed.
@@ -73,6 +82,13 @@ struct GlModelGpu
     QVector<GLuint> textures; // parallel to ModelAsset::images
     std::shared_ptr<const ModelAsset> cpu;
     size_t vramBytes = 0;
+    // The unbaked rig (ModelAsset::rig), uploaded on the first model-clip draw of an animated
+    // file: 16-float vertices plus a 4×N RGBA32F palette texture the skinning shader reads.
+    GLuint rigVao = 0;
+    GLuint rigVbo = 0;
+    GLuint rigIbo = 0;
+    GLuint paletteTex = 0;
+    int paletteRows = 0;
 };
 
 struct CompiledPass
@@ -124,6 +140,11 @@ public:
         float aspect = 1.f; // photo height / width, to turn width-normalized landmarks into uv
     };
     std::map<QString, FaceSwapPhotoGpu> faceSwapPhotos;
+
+    // Skia's Ganesh context, attached lazily by SkiaRuntime::acquire() and torn down first in
+    // shutdown() — it holds GL objects of its own. shared_ptr rather than unique_ptr so this
+    // header needs only the forward declaration. Null when DRIFT_WITH_SKIA is off.
+    std::shared_ptr<skia::SkiaRuntime> skia;
 
     // Face-prop GPU uploads. Bounded LRU; destroyed in shutdown() alongside staticTextures.
     struct ModelCache
@@ -226,6 +247,11 @@ public:
     // `geom` may be nullptr. Cache key is `id` alone — do not reuse an id with different sources.
     QOpenGLShaderProgram *builtinProgram(const QString &id, const char *vertexSource,
                                          const char *fragmentSource, const char *geom);
+    // `fragmentExtensions` is a block of #extension directives injected ahead of the default
+    // precision qualifiers, which is the only legal place for them. nullptr for none.
+    QOpenGLShaderProgram *builtinProgram(const QString &id, const char *vertexSource,
+                                         const char *fragmentSource, const char *geom,
+                                         const char *fragmentExtensions);
 
     // Drop the recyclable GPU memory — the uploaded-image texture cache and the framebuffer pool —
     // without touching the context, the compiled programs or the live present ring. For the Android
@@ -236,10 +262,18 @@ public:
     // Tear down GL objects and stop the GL thread. Called at app exit.
     void shutdown();
 
-    // Last preview import path and VAAPI zero-copy rejection, for the debug report.
-    enum class PreviewUploadPath { None, CudaInterop, VaapiDmaBuf, CpuRoundTrip };
+    // Last preview import path, and the latest reason a zero-copy importer (CUDA, VAAPI, D3D11)
+    // declined a frame, for the debug report.
+    enum class PreviewUploadPath {
+        None,
+        CudaInterop,
+        VaapiDmaBuf,
+        MediaCodecImage,
+        D3d11Interop,
+        CpuRoundTrip
+    };
     static PreviewUploadPath lastPreviewUploadPath();
-    static QString lastVaapiImportReason();
+    static QString lastZeroCopyDeclineReason();
 
     // Outcome of the last bring-up attempt. Safe from any thread, and never starts
     // one itself — call available() first if you want an attempt made rather than a
@@ -265,6 +299,16 @@ private:
     // would glTexSubImage2D straight into the decoder's dma-buf.
     bool ensureImportTextureNames(QOpenGLExtraFunctions *gl);
     bool importVaapiNv12(QOpenGLExtraFunctions *gl, const AVFrame *frame);
+    // Binds a latched MediaCodec gralloc buffer as a GL external texture. Android only; false
+    // everywhere else and on any device whose EGL/GLES lacks the extensions. Writes the picture's
+    // sub-rectangle of the buffer into `crop` as (offsetU, offsetV, scaleU, scaleV).
+    bool importMediaCodecImage(QOpenGLExtraFunctions *gl, const AVFrame *frame, GLuint *texture,
+                               QVector4D *crop);
+    // D3D11VA surface through WGL_NV_DX_interop2 into a Y/UV texture pair for the convert shader.
+    // Windows only; false everywhere else. On true the textures stay locked for GL until
+    // unlockD3d11Import(), which has to follow the draw that samples them.
+    bool importD3d11Nv12(QOpenGLExtraFunctions *gl, const AVFrame *frame, GLuint *texY, GLuint *texUV);
+    void unlockD3d11Import();
     AVFrame *ensureSoftwareNv12(const AVFrame *src);
 
     QMutex m_initMutex;
@@ -309,12 +353,30 @@ private:
     ::SwsContext *m_importSws = nullptr;
     void *m_cudaYResource = nullptr;
     void *m_cudaUvResource = nullptr;
+    // The CUDA device the two resources were registered under. Registrations belong to its
+    // context, so a frame from any other device means registering again; holding the reference
+    // keeps that context alive long enough to unregister from it.
+    AVBufferRef *m_cudaResourceDevice = nullptr;
     int m_cudaTexW = 0;
     int m_cudaTexH = 0;
     bool m_cudaImportFailed = false;
+    // Whether this context's GL_VENDOR is NVIDIA: -1 not yet asked. CUDA interop is never
+    // attempted against any other GPU's context.
+    int m_cudaGlVendorOk = -1;
     GLuint m_importY = 0;
     GLuint m_importUV = 0;
     bool m_vaapiImportFailed = false;
+#if defined(Q_OS_WIN)
+    std::unique_ptr<D3d11GlInterop> m_d3d11;
+    bool m_d3d11ImportFailed = false;
+#endif
+#ifdef Q_OS_ANDROID
+    GLuint m_mcTexture = 0;
+    bool m_mcImportFailed = false;
+    // EGLImages keyed by AHardwareBuffer. Gralloc recycles a small fixed set of buffers, so the
+    // hit rate is effectively 1 and this saves a driver image allocation on every frame.
+    std::vector<std::pair<void *, void *>> m_mcImageCache;
+#endif
     // Auto-mode driver verdict: -1 unknown, 0 unverified, 1 verified. Cached because the
     // answer depends only on the driver, which does not change within a session.
     int m_vaapiAutoVerified = -1;

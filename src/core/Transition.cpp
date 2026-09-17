@@ -81,12 +81,20 @@ bool transitionWindow(const Track &track, const Transition &transition, TimeUs &
     if (transition.durationUs <= 0)
         return false;
 
-    // Adjacent clips: virtual window centered on the cut.
+    // Adjacent clips: virtual window centered on the cut, never outside the two clips
+    // (a stale durationUs from a former overlap must not start before t=0 or outrun them).
     const TimeUs center = fromClip->timelineEnd();
     const TimeUs half = transition.durationUs / 2;
-    startUs = center - half;
-    endUs = center + half;
-    return true;
+    startUs = qMax(fromClip->timelineStart, center - half);
+    endUs = qMin(toClip->timelineEnd(), center + half);
+    return endUs > startUs;
+}
+
+double transitionProgress(const Transition &transition, TimeUs timelineUs, TimeUs windowStartUs,
+                          TimeUs windowEndUs)
+{
+    const double linear = transitionProgress(timelineUs, windowStartUs, windowEndUs);
+    return shapedProgress(linear, transition.easingCurve, transition.easingShape);
 }
 
 double transitionProgress(TimeUs timelineUs, TimeUs windowStartUs, TimeUs windowEndUs)

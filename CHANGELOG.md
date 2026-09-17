@@ -1,6 +1,6 @@
 # Dluz Film — Changelog de Lançamentos
 
-**Versão Atual:** `2.0.0`
+**Versão Atual:** `2.0.0` (Base Upstream: `0.6.0`)
 
 ---
 

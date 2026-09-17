@@ -41,6 +41,10 @@ public:
         drift::TimeUs sourceUs = 0;
         int maxWidth = 0;
         int maxHeight = 0;
+        // Must match what the readVideoFrame/readPreviewVideoFrame that follows will pass: the
+        // reader clears its frame caches whenever this changes, so a warm at one value and a read
+        // at another would decode every frame twice and cache nothing.
+        int rotationCorrection = 0;
     };
 
     // Kick every request off on its own worker thread without waiting. Each path
@@ -64,17 +68,25 @@ public:
 
     // Preview toolbar: Auto (per clip), Software, or Hardware on a named backend.
     // Drops every open video decoder so the next read opens on the chosen path.
+    // Drop every open video decoder so the next read reopens on whatever the current decode
+    // settings say. Blocking: it returns once every worker has actually let go.
+    void resetVideoDecoders();
+
     void setHardwareDecodeMode(ClipReader::HardwareDecodeMode mode,
                                drift::hwaccel::Backend backend = drift::hwaccel::Backend::None);
 
+    // `rotationCorrection` (Clip::rotationCorrection) lets a clip's orientation fix reach the
+    // decoder losslessly.
     QImage readVideoFrame(const QString &path, quint64 streamId, drift::TimeUs sourceUs, int maxWidth,
                           int maxHeight, const QString &stabilizePath = QString(),
-                          int stabilizeSmoothing = 15, bool stabilizeTripod = false);
+                          int stabilizeSmoothing = 15, bool stabilizeTripod = false,
+                          int rotationCorrection = 0);
     // Preview path: AVFrame handle (hardware surfaces stay on the GPU). Empty when decode fails.
     PreviewVideoFrame readPreviewVideoFrame(const QString &path, quint64 streamId, drift::TimeUs sourceUs,
                                             int maxWidth, int maxHeight,
                                             const QString &stabilizePath = QString(),
-                                            int stabilizeSmoothing = 15, bool stabilizeTripod = false);
+                                            int stabilizeSmoothing = 15, bool stabilizeTripod = false,
+                                            int rotationCorrection = 0);
     int readAudioInterleaved(const QString &path, quint64 streamId, drift::TimeUs sourceStartUs,
                              int sampleCount, int outputSampleRate, float *interleavedStereoOut,
                              int audioStreamOrdinal = 0);
@@ -127,3 +139,20 @@ private:
     std::map<QString, std::unique_ptr<WorkerEntry>> m_videoWorkers;
     std::map<QString, std::unique_ptr<WorkerEntry>> m_audioWorkers;
 };
+
+// Blocks MediaCodec surface decoding for its lifetime, and resets every open video decoder on the
+// way in and out so a reader opened in surface mode for the preview is not reused underneath it.
+// Export scopes one of these around the whole encode: a surface frame's YUV->RGB is done by the
+// driver from the buffer's own dataspace, which is not necessarily the matrix the desktop
+// compositor uses, and an export has to match. A no-op off Android.
+namespace drift {
+class MediaCodecSurfaceDecodeBlock
+{
+public:
+    MediaCodecSurfaceDecodeBlock();
+    ~MediaCodecSurfaceDecodeBlock();
+
+    MediaCodecSurfaceDecodeBlock(const MediaCodecSurfaceDecodeBlock &) = delete;
+    MediaCodecSurfaceDecodeBlock &operator=(const MediaCodecSurfaceDecodeBlock &) = delete;
+};
+} // namespace drift

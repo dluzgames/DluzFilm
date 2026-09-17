@@ -5,6 +5,7 @@ add_test(NAME MediaProbe COMMAND tst_mediaprobe)
 qt_add_executable(tst_core tst_core.cpp)
 target_include_directories(tst_core PRIVATE ../src)
 target_link_libraries(tst_core PRIVATE Qt6::Test driftcore)
+target_compile_definitions(tst_core PRIVATE DRIFT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
 add_test(NAME Core COMMAND tst_core)
 
 qt_add_executable(tst_editorstate
@@ -35,6 +36,10 @@ qt_add_executable(tst_editorstate
     ../src/mcp/McpHttp.cpp
     ../src/mcp/McpDispatcher.cpp
     ../src/mcp/McpDispatcherExtended.cpp
+    ../src/mcp/McpValidate.cpp
+    ../src/mcp/McpMarket.cpp
+    ../src/models/MarketClient.cpp
+    ../src/models/MarketIdentity.cpp
     ../src/mcp/McpServer.cpp
     ../src/mcp/McpStdio.cpp
     ../src/mcp/McpStdioServer.cpp
@@ -84,6 +89,19 @@ target_compile_definitions(tst_addonpackage PRIVATE
     DRIFT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
 add_test(NAME AddonPackage COMMAND tst_addonpackage)
 
+qt_add_executable(tst_marketidentity
+    tst_marketidentity.cpp
+    ../src/models/MarketIdentity.cpp
+)
+target_include_directories(tst_marketidentity PRIVATE ../src)
+target_link_libraries(tst_marketidentity PRIVATE Qt6::Test Qt6::Core)
+target_compile_definitions(tst_marketidentity PRIVATE
+    DRIFT_MARKET_API_URL=""
+    # Valid hex on purpose: it is the shape that used to be silently decoded.
+    DRIFT_MARKET_CLIENT_KEY="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    DRIFT_VERSION="0")
+add_test(NAME MarketIdentity COMMAND tst_marketidentity)
+
 qt_add_executable(tst_projectbundle tst_projectbundle.cpp)
 target_include_directories(tst_projectbundle PRIVATE ../src)
 # zstd directly: the test forges a manifest to exercise the format version gate.
@@ -113,9 +131,29 @@ target_compile_definitions(tst_engine PRIVATE
     # checkout without the model still passes.
     DRIFT_TEST_DENOISE_MODEL_DIR="${CMAKE_SOURCE_DIR}/models/deepfilternet3"
 )
+if(DRIFT_WITH_SKIA)
+    target_compile_definitions(tst_engine PRIVATE DRIFT_WITH_SKIA)
+endif()
 add_test(NAME Engine COMMAND tst_engine)
 drift_copy_effects(tst_engine)
 drift_copy_transitions(tst_engine)
+
+if(DRIFT_WITH_SKIA)
+    qt_add_executable(tst_skia tst_skia.cpp)
+    target_include_directories(tst_skia PRIVATE ../src)
+    # Skia::Skia directly: the test's painters draw with SkCanvas themselves.
+    target_link_libraries(tst_skia PRIVATE Qt6::Test Qt6::Gui Qt6::OpenGL driftengine Skia::Skia)
+    target_compile_definitions(tst_skia PRIVATE
+        DRIFT_TEST_FONTS_DIR="${CMAKE_SOURCE_DIR}/fonts"
+        DRIFT_TEST_EMOJI_FONT_DIR="${CMAKE_SOURCE_DIR}/emoji-fonts")
+    add_test(NAME Skia COMMAND tst_skia)
+
+    qt_add_executable(tst_vector tst_vector.cpp)
+    target_include_directories(tst_vector PRIVATE ../src)
+    target_link_libraries(tst_vector PRIVATE Qt6::Test Qt6::Gui Qt6::OpenGL driftengine driftcore)
+    target_compile_definitions(tst_vector PRIVATE DRIFT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
+    add_test(NAME Vector COMMAND tst_vector)
+endif()
 
 qt_add_executable(tst_mcp
     tst_mcp.cpp
@@ -141,13 +179,18 @@ qt_add_executable(tst_mcp
     ../src/playback/ClipPreviewPlayer.cpp
     ../src/mcp/McpDispatcher.cpp
     ../src/mcp/McpDispatcherExtended.cpp
+    ../src/mcp/McpValidate.cpp
+    ../src/mcp/McpMarket.cpp
+    ../src/models/MarketClient.cpp
+    ../src/models/MarketIdentity.cpp
     ../src/mcp/McpServer.cpp
     ../src/mcp/McpStdio.cpp
     ../src/mcp/McpStdioServer.cpp
 )
 target_include_directories(tst_mcp PRIVATE ../src)
 target_link_libraries(tst_mcp PRIVATE Qt6::Test Qt6::Gui Qt6::Network Qt6::Multimedia Qt6::Concurrent driftcore driftengine)
-target_compile_definitions(tst_mcp PRIVATE DRIFT_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(tst_mcp PRIVATE DRIFT_VERSION="${PROJECT_VERSION}"
+    DRIFT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
 add_test(NAME Mcp COMMAND tst_mcp)
 drift_copy_effects(tst_mcp)
 drift_copy_transitions(tst_mcp)
