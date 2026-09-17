@@ -2489,7 +2489,7 @@ ThemedDialog {
                             width: parent.width
                             echoMode: TextInput.PasswordEchoOnEdit
                             text: AiAgent.omnirouterKey
-                            placeholderText: "sk-b11bd45a7b59fb16-7nz0o8-1b1fc2d1"
+                            placeholderText: "sk-..."
                             onTextChanged: AiAgent.omnirouterKey = text.trim()
                         }
 

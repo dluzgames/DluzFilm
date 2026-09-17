@@ -221,7 +221,7 @@ private:
     QString m_groqKey;
     QString m_opencodeKey;
     QString m_opencodeUrl = QStringLiteral("http://localhost:11434/v1");
-    QString m_omnirouterKey = QStringLiteral("sk-b11bd45a7b59fb16-7nz0o8-1b1fc2d1");
+    QString m_omnirouterKey;
     QString m_omnirouterUrl = QStringLiteral("https://9router.dluz.com.br/v1");
     QString m_omnirouterModel = QStringLiteral("gemini-2.5-flash");
     QString m_model;

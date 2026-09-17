@@ -184,8 +184,10 @@ void AiAgentController::loadSettings()
     m_openrouterKey = s.value(QStringLiteral("ai/openrouter_key")).toString();
     m_groqKey = s.value(QStringLiteral("ai/groq_key")).toString();
     m_opencodeKey = s.value(QStringLiteral("ai/opencode_key")).toString();
-    m_opencodeUrl = s.value(QStringLiteral("ai/opencode_url"), QStringLiteral("http://localhost:11434/v1")).toString();
-    m_omnirouterKey = s.value(QStringLiteral("ai/omnirouter_key"), QStringLiteral("sk-b11bd45a7b59fb16-7nz0o8-1b1fc2d1")).toString();
+    m_omnirouterKey = s.value(QStringLiteral("ai/omnirouter_key")).toString();
+    if (m_omnirouterKey.isEmpty()) {
+        m_omnirouterKey = qEnvironmentVariable("OMNIROUTER_API_KEY");
+    }
     m_omnirouterUrl = s.value(QStringLiteral("ai/omnirouter_url"), QStringLiteral("https://9router.dluz.com.br/v1")).toString();
     m_omnirouterModel = s.value(QStringLiteral("ai/omnirouter_model"), QStringLiteral("gemini-2.5-flash")).toString();
     m_model = s.value(QStringLiteral("ai/model")).toString();
