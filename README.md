@@ -1,229 +1,98 @@
 <p align="center">
-  <img src="Drift_icon.png" alt="Drift icon" width="128" height="128">
+  <img src="resources/windows/drift.ico" alt="Dluz Film Icon" width="128" height="128">
 </p>
 
-<h1 align="center">Drift</h1>
+<h1 align="center">Dluz Film v2.0</h1>
 
 <p align="center">
-  <strong>The free desktop editor that makes your videos look finished — not “good enough.”</strong>
+  <strong>Editor de vídeo profissional para desktop com inteligência artificial integrada, aceleração por hardware e interface ultra moderna.</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/CutWire-Studios/Drift/releases/latest"><img src="https://img.shields.io/github/v/release/CutWire-Studios/Drift?label=release" alt="Latest release"></a>
+  <a href="https://github.com/dluzgames/DluzFilm/releases/latest"><img src="https://img.shields.io/github/v/release/dluzgames/DluzFilm?label=release&color=f59e0b" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="License: GPL-3.0"></a>
-  <img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS%20%7C%20Android-lightgrey" alt="Platform: Linux | Windows | macOS | Android">
+  <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20(x64)-informational" alt="Platform: Windows">
+  <img src="https://img.shields.io/badge/graphics-Direct3D%2011%20%7C%20OpenGL-success" alt="Graphics: Direct3D 11 | OpenGL">
+  <img src="https://img.shields.io/badge/AI-OmniRouter%20%7C%20OmniVoice-purple" alt="AI: OmniRouter | OmniVoice">
 </p>
 
 <p align="center">
-  <a href="https://github.com/CutWire-Studios/Drift">GitHub</a> ·
-  <a href="https://github.com/CutWire-Studios/Drift/releases/latest">Download</a> ·
-  <a href="https://github.com/CutWire-Studios/Drift/issues">Issues</a> ·
-  <a href="LICENSE">License</a>
+  <a href="https://github.com/dluzgames/DluzFilm">Repositório Oficial</a> ·
+  <a href="https://github.com/dluzgames/DluzFilm/releases/latest">Download</a> ·
+  <a href="https://github.com/dluzgames/DluzFilm/issues">Suporte & Sugestões</a> ·
+  <a href="https://dluzgames.com.br">DLuz Games</a>
 </p>
 
-Drift is a desktop video editor from CutWire Studios. Drop in clips, add effects, captions, stickers,
-and music, then export a polished video — with **no subscription, no watermark, and no account**.
+---
 
-It is built for the edits people actually make: Reels and Shorts, game clips, school projects,
-tutorials, product demos, memes, and anything you want to look sharp without living in a browser
-or paying a monthly fee.
-
-What you see in the preview is what you export. One compositor, one look, no surprises.
-
-## Download
+## 📸 Interface
 
 <p align="center">
-  <a href="https://flathub.org/apps/org.cutwire.Drift">
-    <img src="https://flathub.org/api/badge?locale=en" alt="Get it on Flathub" width="240">
-  </a>
+  <img src="docs/screenshots/dluzfilm_v2_main.png" alt="Dluz Film v2.0 — Interface moderna com tema slate grey, divisórias escuras e acentos âmbar" width="960">
 </p>
 
-**Linux** — install from Flathub:
+<p align="center"><em>Dluz Film v2.0: Cards cinzas em ardósia, divisórias obsidianas de alto contraste, cantos arredondados (radius 8px) e timeline de precisão.</em></p>
 
-```bash
-flatpak install flathub org.cutwire.Drift
-flatpak run org.cutwire.Drift
-```
+---
 
-Or grab a build for your platform from the
-[latest release](https://github.com/CutWire-Studios/Drift/releases/latest):
+## ⚡ Destaques do Dluz Film v2.0
 
-| Platform | Package |
-|----------|---------|
-| Linux | [Flathub](https://flathub.org/apps/org.cutwire.Drift) · [AppImage](https://github.com/CutWire-Studios/Drift/releases/latest) |
-| Windows | [Installer (.exe)](https://github.com/CutWire-Studios/Drift/releases/latest) · [Portable zip](https://github.com/CutWire-Studios/Drift/releases/latest) |
-| macOS | [Disk image (.dmg, Apple Silicon)](https://github.com/CutWire-Studios/Drift/releases/latest) |
-| Android | [APK (arm64-v8a)](https://github.com/CutWire-Studios/Drift/releases/latest) · [APK (armeabi-v7a)](https://github.com/CutWire-Studios/Drift/releases/latest) · [APK (x86_64)](https://github.com/CutWire-Studios/Drift/releases/latest) |
+### 🎨 1. Nova Identidade Visual & UX Intuitiva
+- **Cards Cinza Ardósia (`#1c1d22`):** Superfícies visualmente destacadas para organizar a navegação (Mídia, Timeline, Preview, Painel de Propriedades e Modais).
+- **Divisórias Obsidianas (`#090a0d` / `#121316`):** Linhas de corte limpas que criam separação clara entre as ferramentas sem poluir o olhar.
+- **Cantos Arredondados Modernos (`8px`):** Estilo refinado em todos os painéis e caixas de ferramentas.
+- **Acentos Dourados/Âmbar (`#f59e0b` / `#fbbf24`):** Cores de ação rápida, sliders visíveis e botão de **Exportar** em destaque.
 
-On a phone, grab `Drift-*-arm64-v8a.apk` from the latest release and install it (or `adb install Drift-*-arm64-v8a.apk`). Use `x86_64` for emulators.
+### 🧠 2. Inteligência Artificial Integrada (OmniRouter & MCP)
+- **OmniRouter Multiprovedor:** Conexão nativa e protegida com Gemini 2.5 Flash, OpenCode e modelos neurais locais via 9Router.
+- **Quatro Agentes de Produção Especializados:**
+  - 📝 **Roteirista:** Criação e estruturação automática de roteiros de alta retenção.
+  - ✂️ **Diretor de Cortes:** Detecção de cenas, pausas e edição da timeline guiada pelo texto falado.
+  - 🎨 **HyperFrames:** Geração e injeção automática de cartelas animadas com auto chroma key.
+  - 🎵 **Diretor de Áudio:** Sincronia de trilhas sonoras adaptativas e efeitos sonoros (SFX) contextuais.
+- **Servidor MCP Desacoplado:** Serviço em segundo plano dedicado (`dluzfilm_mcp.exe`) que permite automação completa por agentes externos (Antigravity, Cursor, Claude Code) sem travar a interface do usuário.
 
-See [all releases](https://github.com/CutWire-Studios/Drift/releases) for previous versions and full changelogs.
+### 🚀 3. Alta Performance & GPU Acceleration
+- **Direct3D 11 Zero-Copy (Windows):** Os frames decodificados em GPU trafegam diretamente para a textura de renderização da VRAM, eliminando engasgos e cópias redundantes entre RAM e CPU.
+- **Renderização por Hardware (NVENC):** Exportação ultra rápida em H.264/HEVC com aceleração dedicada nas placas NVIDIA GeForce (RTX 2060 e superiores).
+- **Encerramento Limpo Instantâneo:** Sem processos zumbis ou resíduos no Gerenciador de Tarefas ao fechar o editor.
 
-## Screenshots
+### ✂️ 4. Linha do Tempo Precisa & Edição Sem Restrições
+- **Fim do Bug do Overlap:** O algoritmo de timeline respeita o corte cirúrgico; arrastar ou remover clipes não cria mais transições (crossfades) indesejadas nem empurra clipes vizinhos.
+- **Navegação Quadro a Quadro (`Shift + Setas`):** Deslocamento cirúrgico de exatamente 1 frame por clique para cortes de precisão milimétrica.
+- **Lossless Rotation (Rotação Sem Perda):** Rotação instantânea de vídeos (90°, 180°, 270°) direto na Bin de Mídia ou na Timeline sem re-encodificação nem perda de qualidade.
+- **Salvar Como (`Save As`):** Duplicação ágil de projetos para criar versões adaptadas (Shorts, Reels, TikTok) a partir do corte original.
 
-<p align="center">
-  <img src="docs/screenshots/main-window.png" alt="The Drift editor: media bin on the left, video preview in the centre, clip inspector on the right, timeline below" width="900">
-</p>
+### 🎙️ 5. Voz Clonada DLuz (OmniVoice CUDA)
+- Síntese neural acelerada na GPU local (RTX 2060) com a voz clonada do criador DLuz, operando no padrão oficial de fala acelerada (`speed=1.15`), sem cortes no final das frases e mixagem calibrada para presença máxima de estúdio.
 
-<p align="center"><em>Everything in one window — media, preview, inspector, and timeline</em></p>
+---
 
-<p align="center">
-  <img src="docs/screenshots/timeline.png" alt="Timeline with four stacked tracks: two image overlays, a title, and a video track showing filmstrip thumbnails" width="900">
-</p>
+## 📥 Instalação e Uso
 
-<p align="center"><em>A real multi-track timeline, with overlays, titles, and filmstrip thumbnails</em></p>
+### Windows (10 / 11 x64)
+1. Acesse a aba de [Releases](https://github.com/dluzgames/DluzFilm/releases/latest).
+2. Baixe o pacote executável `Dluz Film.exe`.
+3. Execute o aplicativo diretamente e comece a editar.
 
-<table>
-  <tr>
-    <td width="50%" align="center">
-      <img src="docs/screenshots/effects-panel.png" alt="Effects browser showing live thumbnail previews of glitch and distortion presets" width="380"><br>
-      <strong>Effects that sell the look</strong><br>
-      Every preset is previewed on a real frame
-    </td>
-    <td width="50%" align="center">
-      <img src="docs/screenshots/transitions-panel.png" alt="Transitions browser with animated previews of crossfade, wipe, and push presets" width="380"><br>
-      <strong>Transitions that feel expensive</strong><br>
-      Drop one where two clips overlap
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="docs/screenshots/stickers-panel.png" alt="Sticker browser with emoji grouped into categories" width="380"><br>
-      <strong>Stickers and emoji on demand</strong><br>
-      Search, drag, and drop them onto the canvas
-    </td>
-    <td width="50%" align="center">
-      <img src="docs/screenshots/text-styles.png" alt="Text style presets including neon, karaoke pop, word background, and handwritten" width="380"><br>
-      <strong>Titles that actually get watched</strong><br>
-      Neon, karaoke, highlights, and punchy word styles
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="docs/screenshots/templates-panel.png" alt="Template browser showing multi-effect looks such as Beat Drop and Glitch Cut" width="380"><br>
-      <strong>Look templates in one click</strong><br>
-      Music-synced stacks like Beat Drop and Glitch Cut
-    </td>
-    <td width="50%" align="center">
-      <img src="docs/screenshots/audio-effects.png" alt="Audio effect browser with EQ, compressor, limiter, noise gate, de-esser, and voice leveler" width="380"><br>
-      <strong>Audio that sounds intentional</strong><br>
-      EQ, compressor, gate, de-esser, and voice tools
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="docs/screenshots/speed-fade.png" alt="Speed and fade inspector with speed presets, reverse, and fade in/out sliders" width="380"><br>
-      <strong>Speed, reverse, and fades</strong><br>
-      Slow-mo, ramps, reverse, and clean in/out
-    </td>
-    <td width="50%" align="center">
-      <img src="docs/screenshots/subtitle-editor.png" alt="Subtitle editor listing timed caption lines, with the line at the playhead highlighted" width="380"><br>
-      <strong>Captions from the speech itself</strong><br>
-      Generate them, then edit every line
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="docs/screenshots/subject-cutout.png" alt="Subject cutout dialog with a click marker on the person and the isolated subject highlighted" width="380"><br>
-      <strong>Click the subject. Keep only that.</strong><br>
-      Isolate a person or object onto its own clip
-    </td>
-    <td width="50%" align="center">
-      <img src="docs/screenshots/export-dialog.png" alt="Export dialog with downscale presets and advanced encoder settings" width="420"><br>
-      <strong>Export that matches the preview</strong><br>
-      Simple presets up front, extra control when you want it
-    </td>
-  </tr>
-</table>
+---
 
-## Features that actually ship in the edit
+## 🛠️ Documentação Técnica
 
-**A timeline that behaves like a real editor.** Trim, split, snap, ripple, mute or hide tracks, and
-undo anything. Stack overlays, titles, and B-roll instead of fighting a one-track toy.
+Para desenvolvedores e colaboradores do ecossistema DLuz Games:
+- Arquitetura completa, mapa de diretórios e contratos de IA: consulte [project.md](project.md).
+- Protocolo de integração MCP: consulte `docs/MCP.md`.
+- Efeitos visuais e shaders GPU: consulte `docs/gpu-effects.md`.
 
-**Looks in seconds, not hours.** GPU effects, stylish transitions, and reusable look templates — so
-a clip can go from raw footage to a finished vibe without opening another app.
+---
 
-**Text, stickers, emoji, and shapes on the canvas.** Neon titles, karaoke-style captions, reaction
-stickers, and callouts stay in the same editor as the cut.
+## 🤝 Créditos & Observação de Fork
 
-**Auto captions you can actually fix.** Speech becomes timed subtitle lines. Edit the wording, tweak
-the timing, and export with captions that match how people watch on mute.
+> **Nota:** O **Dluz Film** é um projeto autônomo mantido e distribuído pela **DLuz Games**.  
+> O software foi desenvolvido a partir de um fork do [Drift](https://github.com/CutWire-Studios/Drift) (criado pela CutWire Studios sob a licença [GPL-3.0](LICENSE)), ao qual foram adicionadas camadas exclusivas de inteligência artificial (OmniRouter, HyperFrames, OmniVoice CUDA), identidade visual personalizada e otimizações proprietárias de pipeline para edição de alta performance.
 
-**Cutouts, masks, and green screen.** Click a subject and lift it onto its own clip. Mask parts of a
-shot, or key out a green screen when you need a cleaner composite.
+---
 
-**Motion that hits the beat.** Speed ramps, reverse, fades, and edits that snap to the music — the
-kind of pacing that makes a clip feel designed, not dumped.
+## 📄 Licença
 
-**Audio tools that clean up the mix.** Volume, fades, EQ, compression, noise cleanup, and voice
-effects, so narration and music sit together instead of fighting.
-
-**Multicam when one camera is not enough.** Watch every angle at once, punch between cameras, and
-save the take as a clean cut — without rebuilding the timeline by hand.
-
-**Project bundles for sharing and backup.** Package a project with its media so the whole edit moves
-with you, instead of breaking the moment a file path changes.
-
-**Export that looks like the preview.** MP4 with quality presets, GIF loops, and ranged export from
-an In/Out work area. What you signed off on is what you get.
-
-## Agent access — let an AI edit with you
-
-Drift has a built-in **MCP server** for local AI tools. Turn on Agent access and Cursor, Claude Code,
-or another compatible agent can work in the open project: import media, place and trim clips, change
-effects, capture a still of the composition, and export.
-
-This is a real editor hook, not a chatbot bolted onto a webpage. The agent sees the timeline and can
-make edits you can undo.
-
-Agent access stays **off until you enable it**, and it only listens on your own computer. Full setup
-and safety notes live in the [MCP guide](docs/MCP.md).
-
-## Addons, without bloating the install
-
-Fonts, stickers, extra effects, and speech models download inside Drift when you need them. Keep the
-app light, then grab only the packs that match the video you are making.
-
-Open the Addon Manager from the header, or follow the install prompt when a feature needs a pack.
-
-## Why people pick Drift
-
-Most “free” editors want an account, a watermark, or a subscription the moment the video starts
-looking good. Drift is the opposite: **yours, on your computer, GPLv3, no login wall.**
-
-It is fast enough for a 30-second social cut and deep enough for a real project — captions, effects,
-audio, cutouts, multicam, and an AI-assisted timeline if you want one.
-
-## Help us translate Drift
-
-[![Translation status](https://hosted.weblate.org/widget/cutwire-drift/drift-desktop/multi-auto.svg)](https://hosted.weblate.org/engage/cutwire-drift/)
-
-## For developers
-
-Build, packaging, architecture, and agent protocol live in `docs/`:
-
-- [Building, testing, packaging, and architecture](docs/BUILDING.md)
-- [GPU effects](docs/gpu-effects.md)
-- [GPU transitions](docs/gpu-transitions.md)
-- [Time Echo architecture](docs/time-echo-architecture.md)
-- [Agent access / MCP](docs/MCP.md)
-
-## Help and feedback
-
-Found a bug or have an idea? Open an
-[issue on GitHub](https://github.com/CutWire-Studios/Drift/issues).
-
-## License
-
-GPLv3 — see [LICENSE](LICENSE).
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=CutWire-Studios%2FDrift&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=CutWire-Studios/Drift&type=date&theme=dark&legend=top-left&sealed_token=zHW_d2jon9Wn-HYP2SWQWLC7qDRaY7qwsvHS0Cp0Ywk1Rf1UvyxhWsakIrx2c11OijPJQ9o52W99jdigV7MOz5RuvLsyWQmBiMvMdk99mcfbgb591WtzNXQO8_K2YhgdbiPD9by00lwl69ZgCZnThFKBwhRbK7IQzIeFkIFnb2o0r5GhJh0HAX6Q8yTM" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=CutWire-Studios/Drift&type=date&legend=top-left&sealed_token=zHW_d2jon9Wn-HYP2SWQWLC7qDRaY7qwsvHS0Cp0Ywk1Rf1UvyxhWsakIrx2c11OijPJQ9o52W99jdigV7MOz5RuvLsyWQmBiMvMdk99mcfbgb591WtzNXQO8_K2YhgdbiPD9by00lwl69ZgCZnThFKBwhRbK7IQzIeFkIFnb2o0r5GhJh0HAX6Q8yTM" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=CutWire-Studios/Drift&type=date&legend=top-left&sealed_token=zHW_d2jon9Wn-HYP2SWQWLC7qDRaY7qwsvHS0Cp0Ywk1Rf1UvyxhWsakIrx2c11OijPJQ9o52W99jdigV7MOz5RuvLsyWQmBiMvMdk99mcfbgb591WtzNXQO8_K2YhgdbiPD9by00lwl69ZgCZnThFKBwhRbK7IQzIeFkIFnb2o0r5GhJh0HAX6Q8yTM" />
- </picture>
-</a>
+Distribuído sob a licença **GNU General Public License v3.0 (GPL-3.0)**. Consulte [LICENSE](LICENSE) para mais informações.
