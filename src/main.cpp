@@ -46,6 +46,16 @@
 #include <QtQml/qqml.h>
 #include <QFile>
 
+#ifdef Q_OS_WIN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
+
 #ifdef Q_OS_ANDROID
 #include "core/Project.h"
 #include "engine/FrameCompositor.h"
@@ -507,6 +517,12 @@ int main(int argc, char *argv[])
     engine.addImageProvider(QStringLiteral("textstyle"), new TextStylePreviewImageProvider());
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed, &app, [] { QGuiApplication::exit(-1); }, Qt::QueuedConnection);
+    QObject::connect(&engine, &QQmlApplicationEngine::quit, &app, &QCoreApplication::quit);
+    app.setQuitOnLastWindowClosed(true);
+    QObject::connect(&app, &QGuiApplication::lastWindowClosed, &app, &QCoreApplication::quit);
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, [&]() {
+        editorState.setMcpEnabled(false);
+    });
     // Main.qml is the desktop layout. AndroidMain.qml is the touch entry point; the desktop tree
     // stays compiled so the touch port can reuse leaf components.
 #ifdef Q_OS_ANDROID
@@ -516,5 +532,10 @@ int main(int argc, char *argv[])
     editorState.setMcpEnabled(true);
 #endif
 
-    return app.exec();
+    const int exitCode = app.exec();
+    editorState.setMcpEnabled(false);
+#ifdef Q_OS_WIN
+    ExitProcess(static_cast<UINT>(exitCode));
+#endif
+    return exitCode;
 }

@@ -1655,8 +1655,7 @@ ThemedDialog {
 
                     ThemedButton {
                         text: qsTr("Configurar Provedor e Chaves na Aba 4 →")
-                        size: "sm"
-                        variant: "outline"
+                        variant: "secondary"
                         onClicked: root.activeTab = 3
                     }
                 }
@@ -2023,8 +2022,7 @@ ThemedDialog {
 
                         ThemedButton {
                             text: AiAgent.provider === "omnirouter" ? qsTr("Motor Ativo ✓") : qsTr("Usar OmniRouter")
-                            size: "sm"
-                            variant: AiAgent.provider === "omnirouter" ? "primary" : "outline"
+                            variant: AiAgent.provider === "omnirouter" ? "primary" : "secondary"
                             onClicked: AiAgent.provider = "omnirouter"
                         }
                     }

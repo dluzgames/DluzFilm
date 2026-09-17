@@ -31,8 +31,11 @@ ApplicationWindow {
         // Before any of the branches below, so a quit that is cancelled at the
         // unsaved prompt still records where the window was.
         window.persistLayout()
-        if (window.forceClose || !EditorState.hasUnsavedChanges)
+        if (window.forceClose || !EditorState.hasUnsavedChanges) {
+            close.accepted = true
+            Qt.quit()
             return
+        }
         close.accepted = false
         // Leave preview fullscreen so the save prompt isn't sitting on a blank
         // full-window preview.
@@ -44,6 +47,7 @@ ApplicationWindow {
             EditorState.discardUnsavedChanges()
             window.forceClose = true
             window.close()
+            Qt.quit()
         })
     }
 
