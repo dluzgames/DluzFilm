@@ -7,8 +7,8 @@ import ".."
 ThemedDialog {
     id: root
 
-    title: qsTr("Agente IA Dluz Film")
-    preferredWidth: 860
+    title: qsTr("Agente IA Dluz Film v2.0")
+    preferredWidth: 920
     showAccept: false
     rejectText: qsTr("Fechar")
 
@@ -20,7 +20,7 @@ ThemedDialog {
 
     contentItem: Column {
         id: body
-        width: parent ? parent.width : 860
+        width: parent ? parent.width : 920
         spacing: Theme.spacingLg
 
         // --- BARRA SUPERIOR DE NAVEGAÇÃO (GOOGLE STITCH SEGMENTED CONTROL) ---
@@ -58,7 +58,7 @@ ThemedDialog {
                         }
 
                         Text {
-                            text: qsTr("Chat & Assistente IA")
+                            text: qsTr("Chat & Assistente")
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSm
                             font.weight: root.activeTab === 0 ? Font.DemiBold : Font.Normal
@@ -110,32 +110,31 @@ ThemedDialog {
                     }
                 }
 
-                // Aba 2: Provedores e Modelos
+                // Aba 2: 🤖 Equipe de IAs & Funções (Multi-Agente)
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     radius: Theme.radiusSm - 1
                     color: root.activeTab === 2 ? Theme.panelAccent : "transparent"
                     border.width: root.activeTab === 2 ? Theme.borderWidth : 0
-                    border.color: root.activeTab === 2 ? Theme.panelBorder : "transparent"
+                    border.color: root.activeTab === 2 ? "#3b82f6" : "transparent"
 
                     Row {
                         anchors.centerIn: parent
                         spacing: Theme.spacingSm
 
-                        IconGlyph {
-                            glyph: Theme.icons.settings
-                            iconSize: Theme.iconSizeBase
-                            iconColor: root.activeTab === 2 ? Theme.primary : Theme.mutedForeground
+                        Text {
+                            text: "🤖"
+                            font.pixelSize: 14
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
                         Text {
-                            text: qsTr("Modelos & Provedores")
+                            text: qsTr("Equipe de IAs & Funções")
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSm
                             font.weight: root.activeTab === 2 ? Font.DemiBold : Font.Normal
-                            color: root.activeTab === 2 ? Theme.panelForeground : Theme.mutedForeground
+                            color: root.activeTab === 2 ? "#3b82f6" : Theme.mutedForeground
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -144,6 +143,43 @@ ThemedDialog {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.activeTab = 2
+                    }
+                }
+
+                // Aba 3: Provedores e Modelos
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    radius: Theme.radiusSm - 1
+                    color: root.activeTab === 3 ? Theme.panelAccent : "transparent"
+                    border.width: root.activeTab === 3 ? Theme.borderWidth : 0
+                    border.color: root.activeTab === 3 ? Theme.panelBorder : "transparent"
+
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: Theme.spacingSm
+
+                        IconGlyph {
+                            glyph: Theme.icons.settings
+                            iconSize: Theme.iconSizeBase
+                            iconColor: root.activeTab === 3 ? Theme.primary : Theme.mutedForeground
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Text {
+                            text: qsTr("Modelos & Provedores")
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSm
+                            font.weight: root.activeTab === 3 ? Font.DemiBold : Font.Normal
+                            color: root.activeTab === 3 ? Theme.panelForeground : Theme.mutedForeground
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.activeTab = 3
                     }
                 }
             }
@@ -1385,22 +1421,623 @@ ThemedDialog {
         }
 
         // ====================================================================
-        // ABA 2: MODELOS & PROVEDORES DE IA
+        // ABA 2: EQUIPE DE IAS & ATRIBUIÇÃO DE FUNÇÕES (MULTI-AGENTE)
+        // ====================================================================
+        Column {
+            id: multiAgentTab
+            width: parent.width
+            spacing: Theme.spacingLg
+            visible: root.activeTab === 2
+
+            // Banner explicativo estilo Google Stitch
+            Rectangle {
+                width: parent.width
+                implicitHeight: teamBannerCol.implicitHeight + Theme.spacingMd * 2
+                radius: Theme.radiusSm
+                color: Qt.rgba(0.23, 0.51, 0.96, 0.08)
+                border.width: 1
+                border.color: Qt.rgba(0.23, 0.51, 0.96, 0.3)
+
+                ColumnLayout {
+                    id: teamBannerCol
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingMd
+                    spacing: 4
+
+                    RowLayout {
+                        spacing: Theme.spacingSm
+                        Text { text: "🤖"; font.pixelSize: 18 }
+                        Text {
+                            text: qsTr("Organização de Agentes & Equipe de IAs Especializadas")
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSm
+                            font.weight: Font.Bold
+                            color: Theme.foreground
+                        }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("Distribua tarefas entre IAs especializadas no Dluz Film v2.0. Você pode usar o Modo Default (um único modelo comanda tudo) ou designar modelos específicos para Cortes, HyperFrames e Áudio/Narração.")
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeXs
+                        color: Theme.mutedForeground
+                        wrapMode: Text.WordWrap
+                    }
+                }
+            }
+
+            // SELETOR DE MODO DE OPERAÇÃO (SEGMENTED SWITCH)
+            Rectangle {
+                width: parent.width
+                height: 42
+                radius: Theme.radiusSm
+                color: Theme.appBackground
+                border.width: Theme.borderWidth
+                border.color: Theme.panelBorder
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 3
+                    spacing: 4
+
+                    // Modo Default
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        radius: Theme.radiusSm - 1
+                        color: !AiAgent.multiAgentEnabled ? Theme.primarySurface : "transparent"
+                        border.width: !AiAgent.multiAgentEnabled ? Theme.borderWidth : 0
+                        border.color: !AiAgent.multiAgentEnabled ? Theme.primary : "transparent"
+
+                        Row {
+                            anchors.centerIn: parent
+                            spacing: Theme.spacingSm
+                            Text { text: "🎯"; font.pixelSize: 13 }
+                            Text {
+                                text: qsTr("Modo Default: Modelo Único (Maestro)")
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeSm
+                                font.weight: !AiAgent.multiAgentEnabled ? Font.Bold : Font.Normal
+                                color: !AiAgent.multiAgentEnabled ? Theme.primary : Theme.mutedForeground
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: AiAgent.multiAgentEnabled = false
+                        }
+                    }
+
+                    // Equipe Especializada
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        radius: Theme.radiusSm - 1
+                        color: AiAgent.multiAgentEnabled ? Qt.rgba(0.23, 0.51, 0.96, 0.15) : "transparent"
+                        border.width: AiAgent.multiAgentEnabled ? Theme.borderWidth : 0
+                        border.color: AiAgent.multiAgentEnabled ? "#3b82f6" : "transparent"
+
+                        Row {
+                            anchors.centerIn: parent
+                            spacing: Theme.spacingSm
+                            Text { text: "⚡"; font.pixelSize: 13 }
+                            Text {
+                                text: qsTr("Equipe Especializada: 1 IA por Função")
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeSm
+                                font.weight: AiAgent.multiAgentEnabled ? Font.Bold : Font.Normal
+                                color: AiAgent.multiAgentEnabled ? "#3b82f6" : Theme.mutedForeground
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: AiAgent.multiAgentEnabled = true
+                        }
+                    }
+                }
+            }
+
+            // CONTEÚDO DO MODO DEFAULT (MAESTRO)
+            Rectangle {
+                width: parent.width
+                implicitHeight: defaultCardCol.implicitHeight + Theme.spacingLg * 2
+                radius: Theme.radiusSm
+                color: Theme.panelAccent
+                border.width: Theme.borderWidth
+                border.color: Theme.panelBorder
+                visible: !AiAgent.multiAgentEnabled
+
+                Column {
+                    id: defaultCardCol
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingLg
+                    spacing: Theme.spacingMd
+
+                    RowLayout {
+                        width: parent.width
+                        spacing: Theme.spacingSm
+
+                        Text { text: "🎯"; font.pixelSize: 22 }
+                        Column {
+                            Layout.fillWidth: true
+                            spacing: 2
+                            Text {
+                                text: qsTr("Modo Maestro Ativo (Recomendado para Simplicidade)")
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeSm
+                                font.weight: Font.Bold
+                                color: Theme.foreground
+                            }
+                            Text {
+                                text: qsTr("Um único modelo de inteligência artificial coordena todas as funções do editor.")
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeTiny
+                                color: Theme.mutedForeground
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: parent.width
+                        height: 1
+                        color: Theme.panelBorder
+                    }
+
+                    RowLayout {
+                        width: parent.width
+                        spacing: Theme.spacingMd
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: defProvCol.implicitHeight + Theme.spacingMd * 2
+                            radius: Theme.radiusSm
+                            color: Theme.appBackground
+                            border.width: 1
+                            border.color: Theme.panelBorder
+
+                            Column {
+                                id: defProvCol
+                                anchors.fill: parent
+                                anchors.margins: Theme.spacingMd
+                                spacing: 4
+
+                                Text {
+                                    text: qsTr("Provedor Central Ativo:")
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeTiny
+                                    color: Theme.mutedForeground
+                                }
+                                Text {
+                                    text: AiAgent.provider.toUpperCase()
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSm
+                                    font.weight: Font.Bold
+                                    color: Theme.primary
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: defModelCol.implicitHeight + Theme.spacingMd * 2
+                            radius: Theme.radiusSm
+                            color: Theme.appBackground
+                            border.width: 1
+                            border.color: Theme.panelBorder
+
+                            Column {
+                                id: defModelCol
+                                anchors.fill: parent
+                                anchors.margins: Theme.spacingMd
+                                spacing: 4
+
+                                Text {
+                                    text: qsTr("Modelo Configurado:")
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeTiny
+                                    color: Theme.mutedForeground
+                                }
+                                Text {
+                                    text: AiAgent.model.length > 0 ? AiAgent.model : qsTr("Padrão Otimizado")
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSm
+                                    font.weight: Font.Bold
+                                    color: Theme.foreground
+                                    elide: Text.ElideRight
+                                }
+                            }
+                        }
+                    }
+
+                    ThemedButton {
+                        text: qsTr("Configurar Provedor e Chaves na Aba 4 →")
+                        size: "sm"
+                        variant: "outline"
+                        onClicked: root.activeTab = 3
+                    }
+                }
+            }
+
+            // CONTEÚDO DA EQUIPE ESPECIALIZADA (MULTI-AGENTE)
+            Column {
+                width: parent.width
+                spacing: Theme.spacingMd
+                visible: AiAgent.multiAgentEnabled
+
+                // 1. AGENTE DE CORTES & TIMELINE
+                Rectangle {
+                    width: parent.width
+                    implicitHeight: cutsCardCol.implicitHeight + Theme.spacingMd * 2
+                    radius: Theme.radiusSm
+                    color: Theme.panelAccent
+                    border.width: 1
+                    border.color: Qt.rgba(0.23, 0.51, 0.96, 0.4)
+
+                    Column {
+                        id: cutsCardCol
+                        anchors.fill: parent
+                        anchors.margins: Theme.spacingMd
+                        spacing: Theme.spacingSm
+
+                        RowLayout {
+                            width: parent.width
+                            spacing: Theme.spacingSm
+
+                            Text { text: "✂️"; font.pixelSize: 18 }
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: 1
+                                Text {
+                                    text: qsTr("1. Agente de Cortes & Ritmo (Timeline)")
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSm
+                                    font.weight: Font.Bold
+                                    color: "#3b82f6"
+                                }
+                                Text {
+                                    text: qsTr("Especialista em análise de silêncios, marcação de beats e ritmo dinâmico de edição.")
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeTiny
+                                    color: Theme.mutedForeground
+                                }
+                            }
+                        }
+
+                        RowLayout {
+                            width: parent.width
+                            spacing: Theme.spacingMd
+
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: 4
+                                ThemedLabel { text: qsTr("Provedor:"); size: "xs" }
+                                Row {
+                                    spacing: 4
+                                    Repeater {
+                                        model: ["omnirouter", "gemini", "groq", "opencode"]
+                                        Rectangle {
+                                            width: 76
+                                            height: 26
+                                            radius: Theme.radiusSm
+                                            color: AiAgent.cutsAgentProvider === modelData ? Qt.rgba(0.23, 0.51, 0.96, 0.2) : Theme.appBackground
+                                            border.width: 1
+                                            border.color: AiAgent.cutsAgentProvider === modelData ? "#3b82f6" : Theme.panelBorder
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: modelData === "omnirouter" ? "OmniRouter" : modelData.charAt(0).toUpperCase() + modelData.slice(1)
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 10
+                                                font.weight: AiAgent.cutsAgentProvider === modelData ? Font.Bold : Font.Normal
+                                                color: AiAgent.cutsAgentProvider === modelData ? "#3b82f6" : Theme.foreground
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: AiAgent.cutsAgentProvider = modelData
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: 4
+                                ThemedLabel { text: qsTr("Modelo (ex: gemini-2.5-flash):"); size: "xs" }
+                                ThemedTextField {
+                                    width: parent.width
+                                    text: AiAgent.cutsAgentModel
+                                    placeholderText: "gemini-2.5-flash"
+                                    onTextChanged: AiAgent.cutsAgentModel = text.trim()
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 2. AGENTE DE HYPERFRAMES & VISUAL
+                Rectangle {
+                    width: parent.width
+                    implicitHeight: hfCardCol.implicitHeight + Theme.spacingMd * 2
+                    radius: Theme.radiusSm
+                    color: Theme.panelAccent
+                    border.width: 1
+                    border.color: Qt.rgba(0.66, 0.33, 0.96, 0.4)
+
+                    Column {
+                        id: hfCardCol
+                        anchors.fill: parent
+                        anchors.margins: Theme.spacingMd
+                        spacing: Theme.spacingSm
+
+                        RowLayout {
+                            width: parent.width
+                            spacing: Theme.spacingSm
+
+                            Text { text: "🎨"; font.pixelSize: 18 }
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: 1
+                                Text {
+                                    text: qsTr("2. Agente de HyperFrames & Gráficos")
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSm
+                                    font.weight: Font.Bold
+                                    color: "#a855f7"
+                                }
+                                Text {
+                                    text: qsTr("Especialista em animações cinéticas, Title Cards, Lower-Thirds e overlays contextuais.")
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeTiny
+                                    color: Theme.mutedForeground
+                                }
+                            }
+                        }
+
+                        RowLayout {
+                            width: parent.width
+                            spacing: Theme.spacingMd
+
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: 4
+                                ThemedLabel { text: qsTr("Provedor:"); size: "xs" }
+                                Row {
+                                    spacing: 4
+                                    Repeater {
+                                        model: ["omnirouter", "gemini", "groq", "opencode"]
+                                        Rectangle {
+                                            width: 76
+                                            height: 26
+                                            radius: Theme.radiusSm
+                                            color: AiAgent.hyperframesAgentProvider === modelData ? Qt.rgba(0.66, 0.33, 0.96, 0.2) : Theme.appBackground
+                                            border.width: 1
+                                            border.color: AiAgent.hyperframesAgentProvider === modelData ? "#a855f7" : Theme.panelBorder
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: modelData === "omnirouter" ? "OmniRouter" : modelData.charAt(0).toUpperCase() + modelData.slice(1)
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 10
+                                                font.weight: AiAgent.hyperframesAgentProvider === modelData ? Font.Bold : Font.Normal
+                                                color: AiAgent.hyperframesAgentProvider === modelData ? "#a855f7" : Theme.foreground
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: AiAgent.hyperframesAgentProvider = modelData
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: 4
+                                ThemedLabel { text: qsTr("Modelo (ex: gemini-2.5-flash):"); size: "xs" }
+                                ThemedTextField {
+                                    width: parent.width
+                                    text: AiAgent.hyperframesAgentModel
+                                    placeholderText: "gemini-2.5-flash"
+                                    onTextChanged: AiAgent.hyperframesAgentModel = text.trim()
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. AGENTE DE ÁUDIO & NARRAÇÃO
+                Rectangle {
+                    width: parent.width
+                    implicitHeight: audioCardCol.implicitHeight + Theme.spacingMd * 2
+                    radius: Theme.radiusSm
+                    color: Theme.panelAccent
+                    border.width: 1
+                    border.color: Qt.rgba(0.06, 0.73, 0.51, 0.4)
+
+                    Column {
+                        id: audioCardCol
+                        anchors.fill: parent
+                        anchors.margins: Theme.spacingMd
+                        spacing: Theme.spacingSm
+
+                        RowLayout {
+                            width: parent.width
+                            spacing: Theme.spacingSm
+
+                            Text { text: "🎙️"; font.pixelSize: 18 }
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: 1
+                                Text {
+                                    text: qsTr("3. Agente de Áudio & Narração")
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSm
+                                    font.weight: Font.Bold
+                                    color: "#10b981"
+                                }
+                                Text {
+                                    text: qsTr("Especialista em roteiro falado com bordão oficial ('Fala melhores, beleza?'), voz OmniVoice CUDA e BGM adaptativa.")
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeTiny
+                                    color: Theme.mutedForeground
+                                }
+                            }
+                        }
+
+                        RowLayout {
+                            width: parent.width
+                            spacing: Theme.spacingMd
+
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: 4
+                                ThemedLabel { text: qsTr("Provedor:"); size: "xs" }
+                                Row {
+                                    spacing: 4
+                                    Repeater {
+                                        model: ["omnirouter", "gemini", "groq", "opencode"]
+                                        Rectangle {
+                                            width: 76
+                                            height: 26
+                                            radius: Theme.radiusSm
+                                            color: AiAgent.audioAgentProvider === modelData ? Qt.rgba(0.06, 0.73, 0.51, 0.2) : Theme.appBackground
+                                            border.width: 1
+                                            border.color: AiAgent.audioAgentProvider === modelData ? "#10b981" : Theme.panelBorder
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: modelData === "omnirouter" ? "OmniRouter" : modelData.charAt(0).toUpperCase() + modelData.slice(1)
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: 10
+                                                font.weight: AiAgent.audioAgentProvider === modelData ? Font.Bold : Font.Normal
+                                                color: AiAgent.audioAgentProvider === modelData ? "#10b981" : Theme.foreground
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: AiAgent.audioAgentProvider = modelData
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: 4
+                                ThemedLabel { text: qsTr("Modelo (ex: gemini-2.5-flash):"); size: "xs" }
+                                ThemedTextField {
+                                    width: parent.width
+                                    text: AiAgent.audioAgentModel
+                                    placeholderText: "gemini-2.5-flash"
+                                    onTextChanged: AiAgent.audioAgentModel = text.trim()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ====================================================================
+        // ABA 3: MODELOS & PROVEDORES DE IA
         // ====================================================================
         Column {
             width: parent.width
             spacing: Theme.spacingLg
-            visible: root.activeTab === 2
+            visible: root.activeTab === 3
 
             ThemedLabel {
                 width: parent.width
                 size: "sm"
                 wrapMode: Text.WordWrap
                 color: Theme.mutedForeground
-                text: qsTr("Selecione o motor de Inteligência Artificial para o seu Dluz Film. Provedores locais com CLI executam sem necessidade de chaves de API.")
+                text: qsTr("Selecione o motor de Inteligência Artificial para o seu Dluz Film. O OmniRouter (9Router) é o hub central oficial da DLuz Games com suporte a múltiplos provedores e otimização RTK.")
             }
 
-            // GRID DE CARDS DOS PROVEDORES (3 COLUNAS)
+            // CARD DE DESTAQUE VIP: OMNIROUTER (9ROUTER)
+            Rectangle {
+                width: parent.width
+                implicitHeight: omniVipCol.implicitHeight + Theme.spacingMd * 2
+                radius: Theme.radiusSm
+                color: AiAgent.provider === "omnirouter" ? Qt.rgba(0.23, 0.51, 0.96, 0.12) : Theme.panelAccent
+                border.width: AiAgent.provider === "omnirouter" ? 2 : 1
+                border.color: AiAgent.provider === "omnirouter" ? "#3b82f6" : Theme.panelBorder
+
+                Column {
+                    id: omniVipCol
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingMd
+                    spacing: Theme.spacingSm
+
+                    RowLayout {
+                        width: parent.width
+                        spacing: Theme.spacingSm
+
+                        Text { text: "🌐"; font.pixelSize: 22 }
+                        Column {
+                            Layout.fillWidth: true
+                            spacing: 1
+                            RowLayout {
+                                spacing: Theme.spacingXs
+                                Text {
+                                    text: "OmniRouter (9Router)"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMd
+                                    font.weight: Font.Bold
+                                    color: Theme.foreground
+                                }
+                                Rectangle {
+                                    height: 18
+                                    width: omniRecText.implicitWidth + 12
+                                    radius: 9
+                                    color: Qt.rgba(0.23, 0.51, 0.96, 0.2)
+                                    Text {
+                                        id: omniRecText
+                                        anchors.centerIn: parent
+                                        text: qsTr("Oficial DLuz Games ✨")
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeTiny
+                                        font.weight: Font.Bold
+                                        color: "#3b82f6"
+                                    }
+                                }
+                            }
+                            Text {
+                                text: qsTr("Hub neural com roteamento inteligente entre Gemini, OpenAI, Claude, Groq, Kimi e RTK.")
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeTiny
+                                color: Theme.mutedForeground
+                            }
+                        }
+
+                        ThemedButton {
+                            text: AiAgent.provider === "omnirouter" ? qsTr("Motor Ativo ✓") : qsTr("Usar OmniRouter")
+                            size: "sm"
+                            variant: AiAgent.provider === "omnirouter" ? "primary" : "outline"
+                            onClicked: AiAgent.provider = "omnirouter"
+                        }
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: AiAgent.provider = "omnirouter"
+                }
+            }
+
+            // GRID DE CARDS DOS DEMAIS PROVEDORES (3 COLUNAS)
             Grid {
                 width: parent.width
                 columns: 3
@@ -1794,6 +2431,112 @@ ThemedDialog {
                     anchors.fill: parent
                     anchors.margins: Theme.spacingLg
                     spacing: Theme.spacingMd
+
+                    // 0. Caso OmniRouter (9Router)
+                    Column {
+                        width: parent.width
+                        spacing: Theme.spacingSm
+                        visible: AiAgent.provider === "omnirouter"
+
+                        RowLayout {
+                            width: parent.width
+                            spacing: Theme.spacingSm
+
+                            Text { text: "🌐"; font.pixelSize: 18 }
+                            Text {
+                                text: qsTr("Configurações do OmniRouter (9Router Hub Oficial)")
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeSm
+                                font.weight: Font.Bold
+                                color: Theme.foreground
+                            }
+                            Item { Layout.fillWidth: true }
+                            Rectangle {
+                                height: 20
+                                width: omniStatusText.implicitWidth + 12
+                                radius: 10
+                                color: AiAgent.omnirouterKey.length > 0 ? Qt.rgba(0.1, 0.8, 0.3, 0.2) : Qt.rgba(0.9, 0.6, 0.1, 0.2)
+                                Text {
+                                    id: omniStatusText
+                                    anchors.centerIn: parent
+                                    text: AiAgent.omnirouterKey.length > 0 ? qsTr("Pronto para Uso ✨") : qsTr("Chave Pendente")
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeTiny
+                                    font.weight: Font.Bold
+                                    color: AiAgent.omnirouterKey.length > 0 ? Theme.constructive : Theme.warning
+                                }
+                            }
+                        }
+
+                        ThemedLabel {
+                            text: qsTr("URL do Servidor / Endpoint OmniRouter:")
+                            size: "xs"
+                            font.weight: Font.Medium
+                        }
+                        ThemedTextField {
+                            width: parent.width
+                            text: AiAgent.omnirouterUrl
+                            placeholderText: "https://9router.dluz.com.br/v1"
+                            onTextChanged: AiAgent.omnirouterUrl = text.trim()
+                        }
+
+                        ThemedLabel {
+                            text: qsTr("Chave de API Mestra (Bearer Token):")
+                            size: "xs"
+                            font.weight: Font.Medium
+                        }
+                        ThemedTextField {
+                            width: parent.width
+                            echoMode: TextInput.PasswordEchoOnEdit
+                            text: AiAgent.omnirouterKey
+                            placeholderText: "sk-b11bd45a7b59fb16-7nz0o8-1b1fc2d1"
+                            onTextChanged: AiAgent.omnirouterKey = text.trim()
+                        }
+
+                        ThemedLabel {
+                            text: qsTr("Modelos Recomendados pelo OmniRouter (Clique para ativar):")
+                            size: "xs"
+                            color: Theme.mutedForeground
+                        }
+                        Row {
+                            spacing: 6
+                            Repeater {
+                                model: [
+                                    { name: "Gemini 2.5 Flash", id: "gemini-2.5-flash" },
+                                    { name: "Llama 3.3 70B", id: "llama-3.3-70b-versatile" },
+                                    { name: "OpenCode Muse", id: "oc/muse-spark-1.3-contributor-free" },
+                                    { name: "Claude 3.5 Sonnet", id: "anthropic/claude-3.5-sonnet" }
+                                ]
+                                Rectangle {
+                                    width: chipTxt.implicitWidth + 14
+                                    height: 24
+                                    radius: 12
+                                    color: (AiAgent.model === modelData.id || (AiAgent.model.length === 0 && modelData.id === "gemini-2.5-flash")) ? Qt.rgba(0.23, 0.51, 0.96, 0.25) : Theme.appBackground
+                                    border.width: 1
+                                    border.color: (AiAgent.model === modelData.id || (AiAgent.model.length === 0 && modelData.id === "gemini-2.5-flash")) ? "#3b82f6" : Theme.panelBorder
+
+                                    Text {
+                                        id: chipTxt
+                                        anchors.centerIn: parent
+                                        text: modelData.name
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 10
+                                        font.weight: (AiAgent.model === modelData.id || (AiAgent.model.length === 0 && modelData.id === "gemini-2.5-flash")) ? Font.Bold : Font.Normal
+                                        color: (AiAgent.model === modelData.id || (AiAgent.model.length === 0 && modelData.id === "gemini-2.5-flash")) ? "#3b82f6" : Theme.foreground
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            AiAgent.model = modelData.id
+                                            AiAgent.omnirouterModel = modelData.id
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     // 1. Caso Antigravity
                     Column {

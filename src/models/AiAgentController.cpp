@@ -156,7 +156,8 @@ AiAgentController::AiAgentController(AppController *controller, QObject *parent)
 
     // Default welcome message
     appendChatMessage(QStringLiteral("assistant"),
-                      tr("Olá! Sou o seu Agente IA interno do Dluz Film (com suporte nativo a Antigravity CLI, Codex CLI, OpenCode, Gemini, Groq e OpenRouter). Posso ajudar você a criar vinhetas e lower-thirds animados com HyperFrames, remover silêncios automaticamente, clonar voz com OmniVoice e gerar cenas com OmniFlash. Como posso ajudar agora?"));
+                      tr("Olá! Sou o seu Agente IA interno do Dluz Film v2.0 (com suporte nativo a OmniRouter / 9Router, Antigravity CLI, Codex CLI, OpenCode, Gemini, Groq e OpenRouter).\n"
+                         "Você pode usar o Modo Default (onde eu comando tudo) ou ativar a Equipe de IAs Especializadas para dividir as funções de Cortes, HyperFrames e Áudio entre diferentes modelos!"));
 }
 
 AiAgentController::~AiAgentController()
@@ -170,7 +171,7 @@ AiAgentController::~AiAgentController()
 void AiAgentController::loadSettings()
 {
     QSettings s(QStringLiteral("Dluz Film"), QStringLiteral("Dluz Film"));
-    QString defProvider = QStringLiteral("gemini");
+    QString defProvider = QStringLiteral("omnirouter");
     if (isAntigravityAvailable())
         defProvider = QStringLiteral("antigravity");
     else if (isCodexAvailable())
@@ -184,7 +185,18 @@ void AiAgentController::loadSettings()
     m_groqKey = s.value(QStringLiteral("ai/groq_key")).toString();
     m_opencodeKey = s.value(QStringLiteral("ai/opencode_key")).toString();
     m_opencodeUrl = s.value(QStringLiteral("ai/opencode_url"), QStringLiteral("http://localhost:11434/v1")).toString();
+    m_omnirouterKey = s.value(QStringLiteral("ai/omnirouter_key"), QStringLiteral("sk-b11bd45a7b59fb16-7nz0o8-1b1fc2d1")).toString();
+    m_omnirouterUrl = s.value(QStringLiteral("ai/omnirouter_url"), QStringLiteral("https://9router.dluz.com.br/v1")).toString();
+    m_omnirouterModel = s.value(QStringLiteral("ai/omnirouter_model"), QStringLiteral("gemini-2.5-flash")).toString();
     m_model = s.value(QStringLiteral("ai/model")).toString();
+
+    m_multiAgentEnabled = s.value(QStringLiteral("ai/multiagent_enabled"), false).toBool();
+    m_cutsAgentProvider = s.value(QStringLiteral("ai/cuts_provider"), QStringLiteral("omnirouter")).toString();
+    m_cutsAgentModel = s.value(QStringLiteral("ai/cuts_model"), QStringLiteral("gemini-2.5-flash")).toString();
+    m_hyperframesAgentProvider = s.value(QStringLiteral("ai/hyperframes_provider"), QStringLiteral("omnirouter")).toString();
+    m_hyperframesAgentModel = s.value(QStringLiteral("ai/hyperframes_model"), QStringLiteral("gemini-2.5-flash")).toString();
+    m_audioAgentProvider = s.value(QStringLiteral("ai/audio_provider"), QStringLiteral("omnirouter")).toString();
+    m_audioAgentModel = s.value(QStringLiteral("ai/audio_model"), QStringLiteral("gemini-2.5-flash")).toString();
 }
 
 void AiAgentController::saveSettings()
@@ -196,7 +208,18 @@ void AiAgentController::saveSettings()
     s.setValue(QStringLiteral("ai/groq_key"), m_groqKey);
     s.setValue(QStringLiteral("ai/opencode_key"), m_opencodeKey);
     s.setValue(QStringLiteral("ai/opencode_url"), m_opencodeUrl);
+    s.setValue(QStringLiteral("ai/omnirouter_key"), m_omnirouterKey);
+    s.setValue(QStringLiteral("ai/omnirouter_url"), m_omnirouterUrl);
+    s.setValue(QStringLiteral("ai/omnirouter_model"), m_omnirouterModel);
     s.setValue(QStringLiteral("ai/model"), m_model);
+
+    s.setValue(QStringLiteral("ai/multiagent_enabled"), m_multiAgentEnabled);
+    s.setValue(QStringLiteral("ai/cuts_provider"), m_cutsAgentProvider);
+    s.setValue(QStringLiteral("ai/cuts_model"), m_cutsAgentModel);
+    s.setValue(QStringLiteral("ai/hyperframes_provider"), m_hyperframesAgentProvider);
+    s.setValue(QStringLiteral("ai/hyperframes_model"), m_hyperframesAgentModel);
+    s.setValue(QStringLiteral("ai/audio_provider"), m_audioAgentProvider);
+    s.setValue(QStringLiteral("ai/audio_model"), m_audioAgentModel);
 }
 
 void AiAgentController::setProvider(const QString &p)
@@ -253,6 +276,33 @@ void AiAgentController::setOpencodeUrl(const QString &u)
     }
 }
 
+void AiAgentController::setOmnirouterKey(const QString &k)
+{
+    if (m_omnirouterKey != k) {
+        m_omnirouterKey = k;
+        saveSettings();
+        emit keysChanged();
+    }
+}
+
+void AiAgentController::setOmnirouterUrl(const QString &u)
+{
+    if (m_omnirouterUrl != u) {
+        m_omnirouterUrl = u;
+        saveSettings();
+        emit keysChanged();
+    }
+}
+
+void AiAgentController::setOmnirouterModel(const QString &m)
+{
+    if (m_omnirouterModel != m) {
+        m_omnirouterModel = m;
+        saveSettings();
+        emit keysChanged();
+    }
+}
+
 void AiAgentController::setModel(const QString &m)
 {
     if (m_model != m) {
@@ -260,6 +310,128 @@ void AiAgentController::setModel(const QString &m)
         saveSettings();
         emit modelChanged();
     }
+}
+
+void AiAgentController::setMultiAgentEnabled(bool enabled)
+{
+    if (m_multiAgentEnabled != enabled) {
+        m_multiAgentEnabled = enabled;
+        saveSettings();
+        emit multiAgentChanged();
+    }
+}
+
+void AiAgentController::setCutsAgentProvider(const QString &p)
+{
+    if (m_cutsAgentProvider != p) {
+        m_cutsAgentProvider = p;
+        saveSettings();
+        emit multiAgentChanged();
+    }
+}
+
+void AiAgentController::setCutsAgentModel(const QString &m)
+{
+    if (m_cutsAgentModel != m) {
+        m_cutsAgentModel = m;
+        saveSettings();
+        emit multiAgentChanged();
+    }
+}
+
+void AiAgentController::setHyperframesAgentProvider(const QString &p)
+{
+    if (m_hyperframesAgentProvider != p) {
+        m_hyperframesAgentProvider = p;
+        saveSettings();
+        emit multiAgentChanged();
+    }
+}
+
+void AiAgentController::setHyperframesAgentModel(const QString &m)
+{
+    if (m_hyperframesAgentModel != m) {
+        m_hyperframesAgentModel = m;
+        saveSettings();
+        emit multiAgentChanged();
+    }
+}
+
+void AiAgentController::setAudioAgentProvider(const QString &p)
+{
+    if (m_audioAgentProvider != p) {
+        m_audioAgentProvider = p;
+        saveSettings();
+        emit multiAgentChanged();
+    }
+}
+
+void AiAgentController::setAudioAgentModel(const QString &m)
+{
+    if (m_audioAgentModel != m) {
+        m_audioAgentModel = m;
+        saveSettings();
+        emit multiAgentChanged();
+    }
+}
+
+QString AiAgentController::effectiveProviderForRole(const QString &role) const
+{
+    if (!m_multiAgentEnabled)
+        return m_provider;
+
+    const QString r = role.toLower();
+    if (r == QStringLiteral("cuts") || r == QStringLiteral("cortes") || r == QStringLiteral("timeline"))
+        return m_cutsAgentProvider.isEmpty() ? m_provider : m_cutsAgentProvider;
+    if (r == QStringLiteral("hyperframes") || r == QStringLiteral("visual") || r == QStringLiteral("graphics"))
+        return m_hyperframesAgentProvider.isEmpty() ? m_provider : m_hyperframesAgentProvider;
+    if (r == QStringLiteral("audio") || r == QStringLiteral("som") || r == QStringLiteral("voice") || r == QStringLiteral("voz"))
+        return m_audioAgentProvider.isEmpty() ? m_provider : m_audioAgentProvider;
+
+    return m_provider;
+}
+
+QString AiAgentController::effectiveModelForRole(const QString &role) const
+{
+    if (!m_multiAgentEnabled)
+        return m_model;
+
+    const QString r = role.toLower();
+    if (r == QStringLiteral("cuts") || r == QStringLiteral("cortes") || r == QStringLiteral("timeline"))
+        return m_cutsAgentModel.isEmpty() ? m_model : m_cutsAgentModel;
+    if (r == QStringLiteral("hyperframes") || r == QStringLiteral("visual") || r == QStringLiteral("graphics"))
+        return m_hyperframesAgentModel.isEmpty() ? m_model : m_hyperframesAgentModel;
+    if (r == QStringLiteral("audio") || r == QStringLiteral("som") || r == QStringLiteral("voice") || r == QStringLiteral("voz"))
+        return m_audioAgentModel.isEmpty() ? m_model : m_audioAgentModel;
+
+    return m_model;
+}
+
+QString AiAgentController::effectiveApiKeyForProvider(const QString &provider) const
+{
+    const QString p = provider.toLower();
+    if (p == QStringLiteral("omnirouter") || p == QStringLiteral("9router"))
+        return m_omnirouterKey;
+    if (p == QStringLiteral("gemini"))
+        return m_geminiKey;
+    if (p == QStringLiteral("openrouter"))
+        return m_openrouterKey;
+    if (p == QStringLiteral("groq"))
+        return m_groqKey;
+    if (p == QStringLiteral("opencode"))
+        return m_opencodeKey;
+
+    return QString();
+}
+
+QString AiAgentController::effectiveUrlForProvider(const QString &provider) const
+{
+    const QString p = provider.toLower();
+    if (p == QStringLiteral("omnirouter") || p == QStringLiteral("9router"))
+        return m_omnirouterUrl;
+    if (p == QStringLiteral("opencode"))
+        return m_opencodeUrl;
+    return QString();
 }
 
 void AiAgentController::setBusy(bool busy, const QString &msg)
@@ -544,12 +716,21 @@ void AiAgentController::sendMessage(const QString &prompt)
         return;
     }
 
-    // OpenRouter, Groq, OpenCode (OpenAI-compatible)
+    // OmniRouter, OpenRouter, Groq, OpenCode (OpenAI-compatible)
     QString urlStr;
     QString key;
     QString defaultModel;
 
-    if (m_provider == QStringLiteral("openrouter")) {
+    if (m_provider == QStringLiteral("omnirouter") || m_provider == QStringLiteral("9router")) {
+        QString base = m_omnirouterUrl.trimmed();
+        if (base.endsWith(QLatin1Char('/')))
+            base.chop(1);
+        if (!base.endsWith(QStringLiteral("/chat/completions")))
+            base += QStringLiteral("/chat/completions");
+        urlStr = base;
+        key = m_omnirouterKey.trimmed();
+        defaultModel = m_omnirouterModel.trimmed().isEmpty() ? QStringLiteral("gemini-2.5-flash") : m_omnirouterModel.trimmed();
+    } else if (m_provider == QStringLiteral("openrouter")) {
         urlStr = QStringLiteral("https://openrouter.ai/api/v1/chat/completions");
         key = m_openrouterKey.trimmed();
         defaultModel = QStringLiteral("anthropic/claude-3.5-sonnet");
@@ -571,7 +752,7 @@ void AiAgentController::sendMessage(const QString &prompt)
     if (key.isEmpty() && m_provider != QStringLiteral("opencode")) {
         setBusy(false);
         appendChatMessage(QStringLiteral("assistant"),
-                          tr("⚠️ Chave API para %1 não configurada! Insira sua chave na aba Configurações.").arg(m_provider));
+                          tr("⚠️ Chave API para %1 não configurada! Insira sua chave na aba Modelos & Provedores.").arg(m_provider));
         return;
     }
 
@@ -1604,30 +1785,41 @@ void AiAgentController::startHardModeProduction(const QString &articleUrlOrText,
         script = QStringLiteral("D:/DluzEditorSource/scripts/dluz_auto_producer.py");
     }
 
+    const QString effAudioProv = effectiveProviderForRole(QStringLiteral("audio"));
+    const QString effAudioModel = effectiveModelForRole(QStringLiteral("audio"));
+    const QString effApiKey = effectiveApiKeyForProvider(effAudioProv);
+    const QString effApiUrl = effectiveUrlForProvider(effAudioProv);
+
     QStringList args{
         script,
         QStringLiteral("--article"), articleUrlOrText.trimmed(),
         QStringLiteral("--voice-engine"), voiceEngine,
         QStringLiteral("--lang"), lang,
         QStringLiteral("--format"), aspectRatio,
-        QStringLiteral("--provider"), m_provider
+        QStringLiteral("--provider"), effAudioProv
     };
 
     if (!gameplayUrlOrPath.trimmed().isEmpty()) {
         args << QStringLiteral("--gameplay") << gameplayUrlOrPath.trimmed();
     }
 
-    QString apiKey;
-    if (m_provider == QStringLiteral("gemini")) apiKey = m_geminiKey;
-    else if (m_provider == QStringLiteral("openrouter")) apiKey = m_openrouterKey;
-    else if (m_provider == QStringLiteral("groq")) apiKey = m_groqKey;
-    else if (m_provider == QStringLiteral("opencode")) apiKey = m_opencodeKey;
-
-    if (!apiKey.isEmpty()) {
-        args << QStringLiteral("--api-key") << apiKey;
+    if (!effApiKey.isEmpty()) {
+        args << QStringLiteral("--api-key") << effApiKey;
     }
-    if (!m_model.isEmpty()) {
-        args << QStringLiteral("--model") << m_model;
+    if (!effApiUrl.isEmpty()) {
+        args << QStringLiteral("--api-url") << effApiUrl;
+    }
+    if (!effAudioModel.isEmpty()) {
+        args << QStringLiteral("--model") << effAudioModel;
+    }
+
+    if (m_multiAgentEnabled) {
+        const QString effHfProv = effectiveProviderForRole(QStringLiteral("hyperframes"));
+        const QString effHfModel = effectiveModelForRole(QStringLiteral("hyperframes"));
+        args << QStringLiteral("--hf-provider") << effHfProv;
+        if (!effHfModel.isEmpty()) {
+            args << QStringLiteral("--hf-model") << effHfModel;
+        }
     }
 
     auto fullOutput = std::make_shared<QString>();
@@ -1885,6 +2077,13 @@ void AiAgentController::autoEditTimelineVideo(int trackIndex, int clipIndex)
         script = QStringLiteral("D:/DluzEditorSource/scripts/timeline_ai_editor.py");
     }
 
+    const QString effCutsProv = effectiveProviderForRole(QStringLiteral("cuts"));
+    const QString effCutsModel = effectiveModelForRole(QStringLiteral("cuts"));
+    const QString effHfProv = effectiveProviderForRole(QStringLiteral("hyperframes"));
+    const QString effHfModel = effectiveModelForRole(QStringLiteral("hyperframes"));
+    const QString effApiKey = effectiveApiKeyForProvider(effCutsProv);
+    const QString effApiUrl = effectiveUrlForProvider(effCutsProv);
+
     QStringList args{
         script,
         QStringLiteral("--video"), videoPath,
@@ -1892,8 +2091,15 @@ void AiAgentController::autoEditTimelineVideo(int trackIndex, int clipIndex)
         QStringLiteral("--duration"), QString::number(duration, 'f', 3),
         QStringLiteral("--timeline-start"), QString::number(timelineStart, 'f', 3),
         QStringLiteral("--mode"), QStringLiteral("full_edit"),
-        QStringLiteral("--lang"), QStringLiteral("pt")
+        QStringLiteral("--lang"), QStringLiteral("pt"),
+        QStringLiteral("--provider"), effCutsProv
     };
+
+    if (!effApiKey.isEmpty()) args << QStringLiteral("--api-key") << effApiKey;
+    if (!effApiUrl.isEmpty()) args << QStringLiteral("--api-url") << effApiUrl;
+    if (!effCutsModel.isEmpty()) args << QStringLiteral("--model") << effCutsModel;
+    args << QStringLiteral("--hf-provider") << effHfProv;
+    if (!effHfModel.isEmpty()) args << QStringLiteral("--hf-model") << effHfModel;
 
     auto fullOutput = std::make_shared<QString>();
 
@@ -1988,6 +2194,11 @@ void AiAgentController::analyzeVideoAndAddContextualHyperframes(int trackIndex, 
         script = QStringLiteral("D:/DluzEditorSource/scripts/timeline_ai_editor.py");
     }
 
+    const QString effHfProv = effectiveProviderForRole(QStringLiteral("hyperframes"));
+    const QString effHfModel = effectiveModelForRole(QStringLiteral("hyperframes"));
+    const QString effApiKey = effectiveApiKeyForProvider(effHfProv);
+    const QString effApiUrl = effectiveUrlForProvider(effHfProv);
+
     QStringList args{
         script,
         QStringLiteral("--video"), videoPath,
@@ -1995,8 +2206,13 @@ void AiAgentController::analyzeVideoAndAddContextualHyperframes(int trackIndex, 
         QStringLiteral("--duration"), QString::number(duration, 'f', 3),
         QStringLiteral("--timeline-start"), QString::number(timelineStart, 'f', 3),
         QStringLiteral("--mode"), QStringLiteral("contextual_hyperframes"),
-        QStringLiteral("--lang"), QStringLiteral("pt")
+        QStringLiteral("--lang"), QStringLiteral("pt"),
+        QStringLiteral("--provider"), effHfProv
     };
+
+    if (!effApiKey.isEmpty()) args << QStringLiteral("--api-key") << effApiKey;
+    if (!effApiUrl.isEmpty()) args << QStringLiteral("--api-url") << effApiUrl;
+    if (!effHfModel.isEmpty()) args << QStringLiteral("--model") << effHfModel;
 
     auto fullOutput = std::make_shared<QString>();
 

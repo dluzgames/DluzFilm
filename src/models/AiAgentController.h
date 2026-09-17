@@ -22,7 +22,19 @@ class AiAgentController : public QObject
     Q_PROPERTY(QString groqKey READ groqKey WRITE setGroqKey NOTIFY keysChanged)
     Q_PROPERTY(QString opencodeKey READ opencodeKey WRITE setOpencodeKey NOTIFY keysChanged)
     Q_PROPERTY(QString opencodeUrl READ opencodeUrl WRITE setOpencodeUrl NOTIFY keysChanged)
+    Q_PROPERTY(QString omnirouterKey READ omnirouterKey WRITE setOmnirouterKey NOTIFY keysChanged)
+    Q_PROPERTY(QString omnirouterUrl READ omnirouterUrl WRITE setOmnirouterUrl NOTIFY keysChanged)
+    Q_PROPERTY(QString omnirouterModel READ omnirouterModel WRITE setOmnirouterModel NOTIFY keysChanged)
     Q_PROPERTY(QString model READ model WRITE setModel NOTIFY modelChanged)
+
+    // Multi-Agent Role Assignment
+    Q_PROPERTY(bool multiAgentEnabled READ isMultiAgentEnabled WRITE setMultiAgentEnabled NOTIFY multiAgentChanged)
+    Q_PROPERTY(QString cutsAgentProvider READ cutsAgentProvider WRITE setCutsAgentProvider NOTIFY multiAgentChanged)
+    Q_PROPERTY(QString cutsAgentModel READ cutsAgentModel WRITE setCutsAgentModel NOTIFY multiAgentChanged)
+    Q_PROPERTY(QString hyperframesAgentProvider READ hyperframesAgentProvider WRITE setHyperframesAgentProvider NOTIFY multiAgentChanged)
+    Q_PROPERTY(QString hyperframesAgentModel READ hyperframesAgentModel WRITE setHyperframesAgentModel NOTIFY multiAgentChanged)
+    Q_PROPERTY(QString audioAgentProvider READ audioAgentProvider WRITE setAudioAgentProvider NOTIFY multiAgentChanged)
+    Q_PROPERTY(QString audioAgentModel READ audioAgentModel WRITE setAudioAgentModel NOTIFY multiAgentChanged)
     Q_PROPERTY(bool codexAvailable READ isCodexAvailable NOTIFY codexAvailableChanged)
     Q_PROPERTY(bool antigravityAvailable READ isAntigravityAvailable NOTIFY antigravityAvailableChanged)
     Q_PROPERTY(bool opencodeCliAvailable READ isOpencodeCliAvailable NOTIFY opencodeCliAvailableChanged)
@@ -52,8 +64,40 @@ public:
     QString opencodeUrl() const { return m_opencodeUrl; }
     void setOpencodeUrl(const QString &u);
 
+    QString omnirouterKey() const { return m_omnirouterKey; }
+    void setOmnirouterKey(const QString &k);
+
+    QString omnirouterUrl() const { return m_omnirouterUrl; }
+    void setOmnirouterUrl(const QString &u);
+
+    QString omnirouterModel() const { return m_omnirouterModel; }
+    void setOmnirouterModel(const QString &m);
+
     QString model() const { return m_model; }
     void setModel(const QString &m);
+
+    bool isMultiAgentEnabled() const { return m_multiAgentEnabled; }
+    void setMultiAgentEnabled(bool enabled);
+
+    QString cutsAgentProvider() const { return m_cutsAgentProvider; }
+    void setCutsAgentProvider(const QString &p);
+    QString cutsAgentModel() const { return m_cutsAgentModel; }
+    void setCutsAgentModel(const QString &m);
+
+    QString hyperframesAgentProvider() const { return m_hyperframesAgentProvider; }
+    void setHyperframesAgentProvider(const QString &p);
+    QString hyperframesAgentModel() const { return m_hyperframesAgentModel; }
+    void setHyperframesAgentModel(const QString &m);
+
+    QString audioAgentProvider() const { return m_audioAgentProvider; }
+    void setAudioAgentProvider(const QString &p);
+    QString audioAgentModel() const { return m_audioAgentModel; }
+    void setAudioAgentModel(const QString &m);
+
+    Q_INVOKABLE QString effectiveProviderForRole(const QString &role) const;
+    Q_INVOKABLE QString effectiveModelForRole(const QString &role) const;
+    Q_INVOKABLE QString effectiveApiKeyForProvider(const QString &provider) const;
+    Q_INVOKABLE QString effectiveUrlForProvider(const QString &provider) const;
 
     bool isBusy() const { return m_isBusy; }
     QString statusMessage() const { return m_statusMessage; }
@@ -135,6 +179,7 @@ signals:
     void providerChanged();
     void keysChanged();
     void modelChanged();
+    void multiAgentChanged();
     void codexAvailableChanged();
     void antigravityAvailableChanged();
     void opencodeCliAvailableChanged();
@@ -176,7 +221,20 @@ private:
     QString m_groqKey;
     QString m_opencodeKey;
     QString m_opencodeUrl = QStringLiteral("http://localhost:11434/v1");
+    QString m_omnirouterKey = QStringLiteral("sk-b11bd45a7b59fb16-7nz0o8-1b1fc2d1");
+    QString m_omnirouterUrl = QStringLiteral("https://9router.dluz.com.br/v1");
+    QString m_omnirouterModel = QStringLiteral("gemini-2.5-flash");
     QString m_model;
+
+    // Multi-Agent roles
+    bool m_multiAgentEnabled = false;
+    QString m_cutsAgentProvider = QStringLiteral("omnirouter");
+    QString m_cutsAgentModel = QStringLiteral("gemini-2.5-flash");
+    QString m_hyperframesAgentProvider = QStringLiteral("omnirouter");
+    QString m_hyperframesAgentModel = QStringLiteral("gemini-2.5-flash");
+    QString m_audioAgentProvider = QStringLiteral("omnirouter");
+    QString m_audioAgentModel = QStringLiteral("gemini-2.5-flash");
+
     bool m_isBusy = false;
     QString m_statusMessage;
     QVariantList m_chatHistory;

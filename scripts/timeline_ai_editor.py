@@ -453,6 +453,12 @@ def main():
     parser.add_argument("--mode", default="contextual_hyperframes", choices=["contextual_hyperframes", "full_edit"])
     parser.add_argument("--lang", default="pt", help="Idioma da transcrição")
     parser.add_argument("--out-dir", default=str(OUTPUT_DIR), help="Diretório de saída")
+    parser.add_argument("--provider", default="", help="Provedor de IA (Cortes / Análise)")
+    parser.add_argument("--api-key", default="", help="Chave de API")
+    parser.add_argument("--api-url", default="", help="URL Base da API")
+    parser.add_argument("--model", default="", help="Modelo LLM")
+    parser.add_argument("--hf-provider", default="", help="Provedor do agente de HyperFrames")
+    parser.add_argument("--hf-model", default="", help="Modelo do agente de HyperFrames")
 
     args = parser.parse_args()
 

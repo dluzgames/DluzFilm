@@ -116,7 +116,7 @@ def scrape_article(url_or_text: str) -> tuple[str, str]:
 
     return title, body
 
-def generate_script_llm(title: str, article_text: str, provider: str, api_key: str, model: str) -> dict:
+def generate_script_llm(title: str, article_text: str, provider: str, api_key: str, model: str, api_url: str = "") -> dict:
     """Gera o roteiro estruturado em 5 blocos com bordão oficial e termos em JSON."""
     log_progress(20, "Gerando roteiro narrativo com bordão oficial...")
 
@@ -203,10 +203,27 @@ def generate_script_llm(title: str, article_text: str, provider: str, api_key: s
                 return json.loads(raw_text)
         except Exception as e:
             log_progress(25, f"Aviso: Falha na API Gemini ({e}). Usando gerador inteligente de contingência...")
-    elif api_key and provider in ("openrouter", "groq"):
+    elif api_key and (provider in ("omnirouter", "9router", "openrouter", "groq") or api_url):
         try:
-            url = "https://openrouter.ai/api/v1/chat/completions" if provider == "openrouter" else "https://api.groq.com/openai/v1/chat/completions"
-            chosen_model = model if model else ("anthropic/claude-3.5-sonnet" if provider == "openrouter" else "llama-3.3-70b-versatile")
+            if provider in ("omnirouter", "9router"):
+                base = api_url.strip() if api_url else "https://9router.dluz.com.br/v1"
+                if base.endswith("/"): base = base[:-1]
+                if not base.endswith("/chat/completions"): base += "/chat/completions"
+                url = base
+                chosen_model = model if model else "gemini-2.5-flash"
+            elif provider == "openrouter":
+                url = "https://openrouter.ai/api/v1/chat/completions"
+                chosen_model = model if model else "anthropic/claude-3.5-sonnet"
+            elif provider == "groq":
+                url = "https://api.groq.com/openai/v1/chat/completions"
+                chosen_model = model if model else "llama-3.3-70b-versatile"
+            else:
+                base = api_url.strip()
+                if base.endswith("/"): base = base[:-1]
+                if not base.endswith("/chat/completions"): base += "/chat/completions"
+                url = base
+                chosen_model = model if model else "llama3"
+
             payload = {
                 "model": chosen_model,
                 "messages": [
@@ -654,7 +671,10 @@ def main():
     parser.add_argument("--gameplay", default="", help="Link do YouTube da gameplay ou arquivo local")
     parser.add_argument("--provider", default="gemini", help="Provedor LLM (gemini, openrouter, groq)")
     parser.add_argument("--api-key", default="", help="Chave API para o provedor")
+    parser.add_argument("--api-url", default="", help="URL Base da API (ex: https://9router.dluz.com.br/v1)")
     parser.add_argument("--model", default="", help="Modelo LLM")
+    parser.add_argument("--hf-provider", default="", help="Provedor para HyperFrames (Multi-Agente)")
+    parser.add_argument("--hf-model", default="", help="Modelo para HyperFrames (Multi-Agente)")
     parser.add_argument("--voice-engine", default="omnivoice", choices=["omnivoice", "edge_tts"])
     parser.add_argument("--voice-prompt", default=DEFAULT_VOICE_PROMPT)
     parser.add_argument("--lang", default="pt")
@@ -676,7 +696,7 @@ def main():
     title, article_text = scrape_article(args.article)
 
     # 2. Roteiro estruturado com bordão oficial
-    script_json = generate_script_llm(title, article_text, args.provider, args.api_key, args.model)
+    script_json = generate_script_llm(title, article_text, args.provider, args.api_key, args.model, args.api_url)
     (proj_dir / "script.json").write_text(json.dumps(script_json, indent=2, ensure_ascii=False), encoding="utf-8")
 
     # 3. Síntese de voz OmniVoice CUDA
