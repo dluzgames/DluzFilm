@@ -8,7 +8,7 @@ Rectangle {
     color: Theme.panelBackground
     border.color: Theme.panelBorder
     border.width: 1
-    radius: Theme.radiusSm
+    radius: Theme.panelRadius
     clip: true
 
     Item {

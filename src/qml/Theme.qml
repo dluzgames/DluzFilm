@@ -140,22 +140,22 @@ QtObject {
 
     // --- Color palettes: app shell vs. panel surfaces, light and dark ------------
     readonly property var _dark: ({
-        appBackground: "#0d0d0d",
+        appBackground: "#090a0d",
         foreground: "#dedede",
-        border: "#292929",
-        accent: "#242424",
+        border: "#121316",
+        accent: "#1e2026",
         accentForeground: "#f2f2f2",
-        mutedForeground: "#b8b8b8",
-        popoverHover: "#212121",
-        panelBackground: "#1a1a1a",
-        panelForeground: "#f0f0f0",
-        panelBorder: "#2e2e2e",
-        panelAccent: "#262626",
-        panelAccentForeground: "#ededed",
-        panelMuted: "#383838",
-        panelSecondaryBg: "#261012",
-        panelSecondaryBorder: "#4d1b22",
-        panelSecondaryForeground: "#ff6b7a"
+        mutedForeground: "#9ca3af",
+        popoverHover: "#262832",
+        panelBackground: "#1c1d22",
+        panelForeground: "#f3f4f6",
+        panelBorder: "#121316",
+        panelAccent: "#262830",
+        panelAccentForeground: "#ffffff",
+        panelMuted: "#373a44",
+        panelSecondaryBg: "#2e2307",
+        panelSecondaryBorder: "#5c4008",
+        panelSecondaryForeground: "#f59e0b"
     })
     readonly property var _light: ({
         appBackground: "#ffffff",
@@ -209,28 +209,27 @@ QtObject {
     readonly property color panelSecondaryForeground: _palette.panelSecondaryForeground
 
     // --- Colors: shared semantic (identical in both themes) -----------------------
-    readonly property color primary: "#E50914"
-    readonly property color primaryForeground: "#ffffff"
-    readonly property color primarySurface: darkMode ? "#2a1215" : "#fee2e2"
-    readonly property color inputBackground: darkMode ? "#141414" : "#f3f4f6"
+    readonly property color primary: "#f59e0b"
+    readonly property color primaryForeground: "#000000"
+    readonly property color primarySurface: darkMode ? "#2e2107" : "#fef3c7"
+    readonly property color inputBackground: darkMode ? "#121316" : "#f3f4f6"
     readonly property color surface: panelBackground
     readonly property color surfaceHover: panelAccent
-    // `primary` as a *foreground* on a panel surface. Dark mode keeps the red (5.1:1);
-    // light mode uses the darkened crimson tone (5.4:1) for strong contrast.
-    readonly property color accentOnPanel: darkMode ? primary : "#b91c1c"
-    readonly property color destructive: "#e91616"
-    readonly property color constructive: "#23d160"
+    // `primary` as a *foreground* on a panel surface. Dark mode keeps the amber (5.1:1);
+    // light mode uses the darkened tone (5.4:1) for strong contrast.
+    readonly property color accentOnPanel: darkMode ? primary : "#d97706"
+    readonly property color destructive: "#ef4444"
+    readonly property color constructive: "#22c55e"
     readonly property color warning: "#f97316"
 
     // Keyboard focus indicator. Shared by every focusable control so a Tab pass
     // reads as one system regardless of which control has focus.
     readonly property color focusRing: primary
 
-    // Export CTA gradient stops (the documented inline-color exception, sourced
-    // from here so the button still tracks the token system).
-    readonly property color exportGradientTop: "#ff4d5a"
-    readonly property color exportGradientBottom: "#dc2626"
-    readonly property color exportGlow: "#ef4444"
+    // Export CTA gradient stops (amber / golden glow)
+    readonly property color exportGradientTop: "#fbbf24"
+    readonly property color exportGradientBottom: "#d97706"
+    readonly property color exportGlow: "#f59e0b"
 
     // Scrims/overlays drawn over media (clip name bands, preview letterbox,
     // thumbnail duration badges). Fixed regardless of app theme because they sit
@@ -244,7 +243,7 @@ QtObject {
     readonly property color guideWeak: "#66ffffff"
     readonly property color onMedia: "#ffffff"
     // Timeline snap indicator.
-    readonly property color snapGuide: "#ff3b50"
+    readonly property color snapGuide: "#f59e0b"
     // Async placeholder fill for thumbnails, filmstrips and waveforms.
     readonly property color skeletonColor: darkMode ? "#242424" : "#e8e8e8"
     readonly property color skeletonHighlight: darkMode ? "#333333" : "#f5f5f5"
@@ -426,7 +425,8 @@ QtObject {
 
     // --- Layout: chrome ------------------------------------------------------
     readonly property real headerHeight: 54.4
-    readonly property real panelGap: 3
+    readonly property real panelGap: 6
+    readonly property real panelRadius: 8
     readonly property real pagePadding: 12
 
     // --- Layout: assets panel -----------------------------------------------

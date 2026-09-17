@@ -18,7 +18,7 @@ PanelFrame {
     // the panel is docked, simply leaves it unconnected.
     signal addCompleted()
     border.width: sheetMode ? 0 : 1
-    radius: sheetMode ? 0 : Theme.radiusSm
+    radius: sheetMode ? 0 : Theme.panelRadius
     color: sheetMode ? "transparent" : Theme.panelBackground
 
     Component.onCompleted: AssetLibrary.ensureAllMedia()

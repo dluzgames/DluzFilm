@@ -11,7 +11,7 @@ PanelFrame {
     // chrome that fights the sheet frame.
     property bool sheetMode: false
     border.width: sheetMode ? 0 : 1
-    radius: sheetMode ? 0 : Theme.radiusSm
+    radius: sheetMode ? 0 : Theme.panelRadius
     color: sheetMode ? "transparent" : Theme.panelBackground
 
     // Raised by the Effects / Audio empty states; Main wires them to the

@@ -1291,7 +1291,7 @@ Item {
                 width: parent.width
                 height: formatColumn.height + Theme.spacingXl * 2
                 radius: Theme.radiusMd
-                color: "transparent"
+                color: Theme.inputBackground
                 border.width: Theme.borderWidth
                 border.color: Theme.panelBorder
 
